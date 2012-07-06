@@ -1,0 +1,11 @@
+{
+  "name": "FTDB Shoutbox Mod",
+  "version": "0.5.0.12",
+  "description": "Améliorations et ajout de fonctions pour la Shoutbox de FTDB",
+  "content_scripts": [
+    {
+      "matches": ["*://*.frenchtorrentdb.com/?section=COMMUNAUTE"],
+      "js": ["FTDB_Shoutbox_Mod.js"]
+    }
+  ]
+}
