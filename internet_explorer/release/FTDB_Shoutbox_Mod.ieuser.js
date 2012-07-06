@@ -1,11 +1,9 @@
 // ==UserScript==
 // @name            FTDB Shoutbox Mod
 // @namespace       http://thetabx.net
-// @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB
+// @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB (Version IE)
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE
-// @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
-// @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.5.0.3
+// @version         0.5.0
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
@@ -30,7 +28,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.5.0.23';
+	var debug = false, scriptVersion = '0.5.0';
 	var d = new Date().getTime();
 	// Debug
 	dbg = function (str) {
@@ -1192,21 +1190,20 @@ with_jquery(function ($) {
 	// sendStatistics()
 	// Send anonymous statistics
 	////////////////////////////
-	var lastVersion = "error";
+	var lastVersion = "KO";
 	var sendStatistics = function () {
-		//if(debug) { return; }
-
+		if(debug) { return; }
 		var url = 'http://thetabx.net/statistics/upload/ftdb/shoutbox/' + scriptVersion + '/';
-		$.each(optionsDB.opt, function (option, data) {
-			if(data.type == "number") {
-				url += optionsDB.get(option) + ':';
+		$.each(optionsDB, function (option, data) {
+			if(typeof data == "function") {
+				return;
 			}
-			else if(data.type == "check") {
-				url += (optionsDB.get(option) ? '1' : '0') + ':';
-			}
+			url += (data.type == "number" ? optionsDB.get(option) : (optionsDB.get(option) ? '1' : '0')) + ':';
 		});
-		$.get(url, function (data) {
-			lastVersion = data;
+		var xdr = new XDomainRequest();
+		xdr.open("get", url);
+		xdr.onload = function () {
+			lastVersion = xdr.responseText;
 			switch(lastVersion) {
 				case "OK": {
 					break;
@@ -1225,7 +1222,10 @@ with_jquery(function ($) {
 				}
 
 			}
-		});
+		};
+		setTimeout(function () {
+			xdr.send();	
+		}, 0);
 	};
 
 	///////////////////////////////
@@ -1309,7 +1309,7 @@ with_jquery(function ($) {
 					}
 				});
 
-				$("#options_panel").fadeOut(600, function () { window.location.reload(); });
+				$("#options_panel").fadeOut(600, function () { window.location = window.location; });
 				return false;
 			});
 			
@@ -1453,33 +1453,39 @@ with_jquery(function ($) {
 
 	////////////////////////////////////////////////////////
 	// GM_getValue(name, default) / GM_setValue(name, value)
-	// GreaseMonkey functs adapt to chrome
+	// GreaseMonkey functs adapt to IE
 	////////////////////////////////////////////////////////
-	if (typeof GM_getValue == 'undefined') {
-		if(localStorage == null) {
-			alert("[FTDB] Il semblerait que le localStorage soit désactivé.\nVeuillez l'activer avant d'utiliser le script!");
+	GM_getValue = function (name, defaultValue) {
+		var value = localStorage.getItem(name);
+		if (!value) {
+			return defaultValue;
 		}
-		GM_getValue = function (name, defaultValue) {
-			var value = localStorage.getItem(name);
-			if (!value) {
-				return defaultValue;
-			}
-			var type = value[0];
-			value = value.substring(1);
-			switch (type) {
-				case 'b':
-					return value == 'true';
-				case 'n':
-					return Number(value);
-				default:
-					return value;
-			}
-		};
-		GM_setValue = function (name, value) {
-			value = (typeof value)[0] + value;
-			localStorage.setItem(name, value);
-		};
-	}
+		var type = value[0];
+		value = value.substring(1);
+		switch (type) {
+			case 'b':
+				return value == 'true';
+			case 'n':
+				return Number(value);
+			default:
+				return value;
+		}
+	};
+	GM_setValue = function (name, value) {
+		value = (typeof value)[0] + value;
+		localStorage.setItem(name, value);
+	};
+
+	//////////////////
+	// IE Refresh Hack
+	//////////////////
+	$(document).bind("keydown", function(e) {
+		if(e.which == 116) {
+			e.stopPropagation();
+			e.preventDefault();
+			window.location = window.location;
+		}
+	});
 
 	////////////////
 	// Options array

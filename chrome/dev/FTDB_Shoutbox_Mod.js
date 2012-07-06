@@ -20,7 +20,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.5.0.18';
+	var debug = true, scriptVersion = '0.5.0.21';
 	var d = new Date().getTime();
 	// Debug
 	dbg = function (str) {

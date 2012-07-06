@@ -1,13 +1,3 @@
-// ==UserScript==
-// @name            FTDB Shoutbox Mod
-// @namespace       http://thetabx.net
-// @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB
-// @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE
-// @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
-// @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.5.0.3
-// ==/UserScript==
-
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
 // From 0.4.19
 // ! Image load scroll
@@ -30,7 +20,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.5.0.23';
+	var debug = false, scriptVersion = '0.5.0';
 	var d = new Date().getTime();
 	// Debug
 	dbg = function (str) {
