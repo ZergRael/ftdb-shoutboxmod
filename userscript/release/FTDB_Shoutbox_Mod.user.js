@@ -5,7 +5,7 @@
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE
 // @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
 // @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.5.0
+// @version         0.5.1
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
@@ -14,6 +14,8 @@
 // ! Sound on quote when ignore
 // * CSS rework
 // ! Harmony CSS hacks
+// From 0.5.0
+// ! DefaultVal undefined
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -30,7 +32,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = false, scriptVersion = '0.5.0';
+	var debug = false, scriptVersion = '0.5.1';
 	var d = new Date().getTime();
 	// Debug
 	dbg = function (str) {
@@ -1538,7 +1540,7 @@ with_jquery(function ($) {
 			if(this.opt[k].val == undefined) {
 				this.opt[k].val = GM_getValue(k);
 				if(this.opt[k].val == undefined) {
-					this.opt[k].val = this[k].defaultVal;
+					this.opt[k].val = this.opt[k].defaultVal;
 				}
 				this.opt[k].val = (this.opt[k].type == "number" ? Number(this.opt[k].val) : this.opt[k].val);
 			}
