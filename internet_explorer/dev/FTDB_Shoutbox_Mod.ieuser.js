@@ -2,8 +2,8 @@
 // @name            FTDB Shoutbox Mod
 // @namespace       http://thetabx.net
 // @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB (Version IE)
-// @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE
-// @version         0.5.1.6
+// @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
+// @version         0.5.2.6
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
@@ -14,6 +14,9 @@
 // ! Harmony CSS hacks
 // From 0.5.0
 // ! DefaultVal undefined
+// From 0.5.1
+// - BBCode
+// ! Usersmileys
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -30,7 +33,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.5.1.26';
+	var debug = true, scriptVersion = '0.5.2.26';
 	var d = new Date().getTime();
 	// Debug
 	dbg = function (str) {
@@ -776,139 +779,97 @@ with_jquery(function ($) {
 		return usersTab;
 	};
 
-	var bbcodeHeight = 0, userBbcodeHeight = 0, userInputHeight = 42;
-	//////////////////////////////////////////////////////////
-	// addBBcodeBar()
-	// add a bar with buttons to format text with bbcode tags
-	//////////////////////////////////////////////////////////
-	var addBBcodeBar = function () {
-		bbcodeHeight = 26;
-		$("#mod_shoutbox").append('<div id="bbcode_bar"><div id="bbcode_bbcode" class="bbcode_bar"></div><div class="bbcode_separator"></div><div id="bbcode_color" class="bbcode_bar"></div><div class="bbcode_separator"></div><div id="bbcode_smiley" class="bbcode_bar"></div><div class="bbcode_separator"></div><div id="bbcode_command" class="bbcode_bar"></div></div>');
-
-		var sText = $("#shout_text");
-		// BBCode
-		var bbcode = [{ url:'bold', alt:'b'}, { url:'italic', alt:'i'}, { url:'underline', alt:'u'}, { url:'picture', alt:'img'}, {url:'link', alt:'url', spec:true}];
-		$.each(bbcode, function (k, v) { $("#bbcode_bbcode").append('<img src="themes/images/bbcode/' + v.url + '.png" alt="' + v.alt + '" class="bbcode_bbcode' + (v.spec?' spec':'') + '" /> '); });
-		$(".bbcode_bbcode").click(function () { 
-			sText.val(sText.val().substring(0, sText[0].selectionStart) + '[' + $(this).attr("alt") + ($(this).hasClass("spec")?'=':']') + sText.val().substring(sText[0].selectionStart, sText[0].selectionEnd) + ($(this).hasClass("spec")?']':'') + '[/' + $(this).attr("alt") + ']' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
-			sText.focus();
-		});
-		
-		// Colors
-		var colors = ["white", "darkgray", "red", "yellow", "lime", "aqua", "blue", "fuchsia", "black", "gray", "maroon", "orange", "green", "teal", "navy", "purple"];  
-		$.each(colors, function (k,v) {
-			$("#bbcode_color").append('<div id="' + v + '" class="bbcode_color ' + (colors.length/2 == k ?'bbcode_color_newline':'') + '"></div>');
-			$("#" + v).css({"background-color": v});
-		});
-		$(".bbcode_color").click(function () {
-			sText.val(sText.val().substring(0, sText[0].selectionStart) + '[color=' + $(this).attr("id") + ']' + sText.val().substring(sText[0].selectionStart, sText[0].selectionEnd) + '[/color]' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
-			sText.focus();
-		});
-
-		// Smileys
-		var smileys = [{ url:'smile', alt:':)' }, { url:'wink', alt:';)' }, { url:'frown', alt:':(' }, { url:'bigsmile', alt:':D' }, { url:'tongue', alt:':P' }, { url:'laugh', alt:'XD' }, { url:'sweatdrop', alt:'^^;' }, { url:'boggle', alt:'o.O' }, { url:'worry', alt:':s' }, { url:'teeth', alt:'<g>' }, { url:'heart', alt:'<3' }, { url:'angry', alt:'D:' }, {url:'anime',alt:'^_^'}, {url:'bigeyes',alt:'8)'}, {url:'bigwink',alt:';D'}, {url:'blue',alt:':blue:'}, {url:'confuse',alt:':?'}, {url:'cool',alt:'B)'}, {url:'evil',alt:'>:)'}, {url:'irritated',alt:':/'}, {url:'lookleft',alt:'<_<'}, {url:'lookright',alt:'>_>'}, {url:'neutral',alt:':|'}, {url:'saint',alt:'O:)'}, {url:'sleepy',alt:':zzz:'}, {url:'smile3',alt:':3'}, {url:'sneaky',alt:'>;)'}, {url:'star',alt:':star:'}, {url:'surprise',alt:':O'}, {url:'wink3',alt:';3'}];
-		$.each(smileys, function (k, v) { $("#bbcode_smiley").append('<img src="themes/images/smileys/' + v.url + '.gif" alt="' + v.alt + '" class="bbcode_smiley" /> '); });
-		$(".bbcode_smiley").click(function () {
-			sText.val(sText.val().substring(0, sText[0].selectionStart) + ' ' + $(this).attr("alt") + ' ' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
-			sText.focus();
-		});
-
-		// Commands
-		var command = ["/me"];
-		$.each(command, function (k, v) { $("#bbcode_command").append('<span class="bbcode_command">' + v + '</span> '); });
-		$(".bbcode_command").click(function () {
-			sText.val($(this).text() + ' ' + sText.val().substring(0, sText.val().length));
-			sText.focus();
-		});
+	var userBbcodeHeight = 0, userInputHeight = 82;
+	//////////////////////////////
+	// addUSmileyBar()
+	// add a bar with user smileys
+	//////////////////////////////
+	var addUSmileyBar = function () {
+		userBbcodeHeight = 30;
+			
+		$(".markItUpContainer").append('<div id="user_bbcode_bar"><div id="bbcode_usersmiley" class="bbcode_bar"></div><div class="user_bbcode_separator"></div><div id="bbcode_usersmiley_control" class="bbcode_bar"><a href="#" id="usersmiley_management">Gérer les smileys</a></div></div>');
 
 		// User smileys
-		if(optionsDB.get("usersmiley")) {
-			userBbcodeHeight = 30;
-			
-			$("#mod_shoutbox").append('<div id="user_bbcode_bar"><div id="bbcode_usersmiley" class="bbcode_bar"></div><div class="user_bbcode_separator"></div><div id="bbcode_usersmiley_control" class="bbcode_bar"><a href="#" id="usersmiley_management">Gérer les smileys</a></div></div>');
+		userData.loadData();
+		$.each(userData.getAll("smiley"), function (k,v) {
+			$("#bbcode_usersmiley").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" class="bbcode_usersmiley" />');
+		});
+		$(".bbcode_usersmiley").click(function() {
+			sText.val(sText.val().substring(0, sText[0].selectionStart) + ' [img]' + $(this).attr("src") + '[/img] ' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
+			sText.focus();
+		});
 
-			// User smileys
-			userData.loadData();
-			$.each(userData.getAll("smiley"), function (k,v) {
-				$("#bbcode_usersmiley").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" class="bbcode_usersmiley" />');
-			});
-			$(".bbcode_usersmiley").click(function() {
-				sText.val(sText.val().substring(0, sText[0].selectionStart) + ' [img]' + $(this).attr("src") + '[/img] ' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
-				sText.focus();
-			});
+		$("#usersmiley_management").click(function() {
+			if($("#smiley_panel").length) { $("#smiley_panel").remove(); }
+			$("#website").append('<div id="smiley_panel" class="ftdb_panel"><h3><center>Gestion des smileys</center></h3>' +
+			'<div class="smiley_panel_div" id="usm_add">Ajouter un smiley<div class="usm_add_input">Nom : <input type="text" id="usm_add_name" size="26" ></div><div class="usm_add_input">Url : <input type="text" id="usm_add_url" size="28" /></div><center><input type="button" id="usm_add_btn" value=" Ajouter " /></center></div>' +
+			'<div class="smiley_panel_div" id="usm_del">Supprimer un smiley</br></div>' +
+			'<center><input type="button" id="purge_usersmiley" value=" Tout supprimer " /> <input type="button" id="close_smiley_panel" value=" Fermer " /></center></div>');
+			$("#usm_add_btn").click(function() {
+				if($("#usersmiley_management option").length >= 30) {
+					alert("Il y a trop de smileys !");
+					return;
+				}
+				
+				var url = $("#usm_add_url").val();
+				if(url == "" || url === null || (url.indexOf("http://") == -1)) {
+					$("#usm_add_url").val("Url incorrecte");
+					return;
+				}
 
-			$("#usersmiley_management").click(function() {
-				if($("#smiley_panel").length) { $("#smiley_panel").remove(); }
-				$("#website").append('<div id="smiley_panel" class="ftdb_panel"><h3><center>Gestion des smileys</center></h3>' +
-				'<div class="smiley_panel_div" id="usm_add">Ajouter un smiley<div class="usm_add_input">Nom : <input type="text" id="usm_add_name" size="26" ></div><div class="usm_add_input">Url : <input type="text" id="usm_add_url" size="28" /></div><center><input type="button" id="usm_add_btn" value=" Ajouter " /></center></div>' +
-				'<div class="smiley_panel_div" id="usm_del">Supprimer un smiley</br></div>' +
-				'<center><input type="button" id="purge_usersmiley" value=" Tout supprimer " /> <input type="button" id="close_smiley_panel" value=" Fermer " /></center></div>');
-				$("#usm_add_btn").click(function() {
-					if($("#usersmiley_management option").length >= 30) {
-						alert("Il y a trop de smileys !");
-						return;
-					}
-					
-					var url = $("#usm_add_url").val();
-					if(url == "" || url === null || (url.indexOf("http://") == -1)) {
-						$("#usm_add_url").val("Url incorrecte");
-						return;
-					}
+				var nom = $("#usm_add_name").val();
+				if(nom == "" || nom === null || nom.indexOf(" ") != -1) {
+					$("#usm_add_name").val("Nom incorrect. Ne doit pas contenir d'espace");
+					return;
+				}
 
-					var nom = $("#usm_add_name").val();
-					if(nom == "" || nom === null || nom.indexOf(" ") != -1) {
-						$("#usm_add_name").val("Nom incorrect. Ne doit pas contenir d'espace");
-						return;
-					}
-
-					if(userData.get("smiley", nom) == undefined) {
-						var img = new Image();
-						img.onload = function() {
-							dbg("Image w:" + this.width + " h:" + this.height);
-							if(this.width > 64 || this.height > 64) {
-								if(!confirm("Cette image est trop grosse et risque de ralentir votre navigateur !\nÊtes-vous sur de l'ajouter ?")) { return; }
-							}
-							userData.set("smiley", nom, url);
-
-							$("#usm_del").append($(' <img src="' + url + '" width="16" height="16" alt="' + nom + '" class="usersmiley_rem" /> ').click(function() {
-								userData.unset("smiley", nom);
-								$('.bbcode_usersmiley[alt="' + nom + '"]').remove();
-								$('.usersmiley_rem[alt="' + nom + '"]').remove();
-							}));
-
-							$("#bbcode_usersmiley").append($(' <img src="' + url + '" width="16" height="16" alt="' + nom + '" class="bbcode_usersmiley" /> ').click(function() {
-								sText.val(sText.val().substring(0, sText[0].selectionStart) + ' [img]' + url + '[/img] ' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
-								sText.focus();
-							}));
+				if(userData.get("smiley", nom) == undefined) {
+					var img = new Image();
+					img.onload = function() {
+						dbg("Image w:" + this.width + " h:" + this.height);
+						if(this.width > 64 || this.height > 64) {
+							if(!confirm("Cette image est trop grosse et risque de ralentir votre navigateur !\nÊtes-vous sur de l'ajouter ?")) { return; }
 						}
-						img.src = url;
+						userData.set("smiley", nom, url);
+
+						$("#usm_del").append($(' <img src="' + url + '" width="16" height="16" alt="' + nom + '" class="usersmiley_rem" /> ').click(function() {
+							userData.unset("smiley", nom);
+							$('.bbcode_usersmiley[alt="' + nom + '"]').remove();
+							$('.usersmiley_rem[alt="' + nom + '"]').remove();
+						}));
+
+						$("#bbcode_usersmiley").append($(' <img src="' + url + '" width="16" height="16" alt="' + nom + '" class="bbcode_usersmiley" /> ').click(function() {
+							sText.val(sText.val().substring(0, sText[0].selectionStart) + ' [img]' + url + '[/img] ' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
+							sText.focus();
+						}));
 					}
-					else { alert("Ce smiley existe déjà !"); }
-				});
-
-				$.each(userData.getAll("smiley"), function (k,v) {
-					$("#usm_del").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" class="usersmiley_rem" />');
-				});
-
-				$(".usersmiley_rem").click(function() {
-					var name = $(this).attr("alt");
-					userData.unset("smiley", name);
-					$('.bbcode_usersmiley[alt="' + name + '"]').remove();
-					$(this).remove();
-				});
-
-				$("#purge_usersmiley").click(function() {
-					if(confirm("Êtes-vous sur de supprimer tous les smileys perso ?")) {
-						$('.bbcode_usersmiley').each(function() { $(this).remove(); });
-						$('.usersmiley_rem').each(function() { $(this).remove(); });
-						userData.clearData("smiley");
-					}
-				});
-
-				$("#close_smiley_panel").click(function() { $("#smiley_panel").remove(); });
-				return false;
+					img.src = url;
+				}
+				else { alert("Ce smiley existe déjà !"); }
 			});
-		}
+
+			$.each(userData.getAll("smiley"), function (k,v) {
+				$("#usm_del").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" class="usersmiley_rem" />');
+			});
+
+			$(".usersmiley_rem").click(function() {
+				var name = $(this).attr("alt");
+				userData.unset("smiley", name);
+				$('.bbcode_usersmiley[alt="' + name + '"]').remove();
+				$(this).remove();
+			});
+
+			$("#purge_usersmiley").click(function() {
+				if(confirm("Êtes-vous sur de supprimer tous les smileys perso ?")) {
+					$('.bbcode_usersmiley').each(function() { $(this).remove(); });
+					$('.usersmiley_rem').each(function() { $(this).remove(); });
+					userData.clearData("smiley");
+				}
+			});
+
+			$("#close_smiley_panel").click(function() { $("#smiley_panel").remove(); });
+			return false;
+		});
 	};
 
 	///////////////////////////
@@ -1324,11 +1285,9 @@ with_jquery(function ($) {
 	// setResizer()
 	// Resize most of the divs
 	//////////////////////////
-	var minSBHeight = 68;
+	var minSBHeight = 82;
 	var setResizer = function () { 
-		if(optionsDB.get("bbcode")) {
-			minSBHeight += (bbcodeHeight + userBbcodeHeight);
-		}
+		minSBHeight += userBbcodeHeight;
 
 		if(!optionsDB.get("resizeclic")) { return; }
 
@@ -1361,7 +1320,7 @@ with_jquery(function ($) {
 	// Reset the aspect of the shoutbox (sort of css hack) + scroll
 	///////////////////////////////////////////////////////////////
 	var resizeShoutbox = function () {
-		var shoutBoxHeight = $("#mod_shoutbox").height() - userInputHeight - bbcodeHeight - userBbcodeHeight - (isHarmonyCss ? 5 : 0);
+		var shoutBoxHeight = $("#mod_shoutbox").height() - userInputHeight - userBbcodeHeight - (isHarmonyCss ? 5 : 0);
 		var userListHeight = shoutBoxHeight - (optionsDB.get("userlist") ? 18 : 0);
 		$("#resizableCSS").html(
 			"#SHOUT_MESSAGE { height: " + shoutBoxHeight + "px; } " +
@@ -1384,14 +1343,17 @@ with_jquery(function ($) {
 			(optionsDB.get("autoresize") ?
 				"#SHOUT_MESSAGE { overflow-x: hidden; } " +
 				"#top_content .arian_nav { width: 90%; } " +
+				".mod_shoutbox .markItUp { width: auto; } " +
+				".mod_shoutbox .markItUpContainer { width: auto; } " +
 				"#MAIN { width: 90%; } " +
 				".big_box h1 { width: " + (isHarmonyCss ? '100.7%' : '100%') + "; } " +
 				"#mod_shoutbox { height: " + optionsDB.get("shoutbox_height") + "px; } " + 
-				"#shout_text { width: " + (isHarmonyCss ? '98.7%' : '100%' ) + "; } " +
-				".mod_shoutbox .form { " + (isHarmonyCss ? 'width: 98.7%' : 'height: 32px; padding: 4px 6px 4px 4px;') + " } " : "") +
+				"#shout_text { width: " + (isHarmonyCss ? '98.7%' : '99%' ) + "; } " +
+				//".mod_shoutbox .form { " + (isHarmonyCss ? 'width: 98.7%' : 'height: 32px; padding: 4px 6px 4px 4px;') + " } "
+				"" : "") +
 
 			"#MAIN {" + (isHarmonyCss ? 'padding: 5px 0 0 0; ' : '') + "} " +
-			".mod_shoutbox .form { " + (isHarmonyCss ? 'padding: 0;' : '') + " } " +
+			//".mod_shoutbox .form { " + (isHarmonyCss ? 'padding: 0;' : '') + " } " +
 			"#mod_shoutbox { " + (optionsDB.get("font") != "Par défaut" ? 'font-family: ' + optionsDB.get("font") + '; ' : '') + "} " +
 			".mod_shoutbox .shout_rowalt.highlight_mouseover { background-color: #BFD !important; } " +
 			".mod_shoutbox .shout_rowalt.highlight_quote { background-color: #FFA !important; } " +
@@ -1416,19 +1378,10 @@ with_jquery(function ($) {
 			".user_dot_connected { color: lime; } " +
 			".user_dot_disconnected { color: red; } " +
 			".selected_option { font-style: italic; } " +
-			
-			
-			"#bbcode_bar { height: 26px; border-top: 1px solid #DDD; line-height: 18px; } " +
-			".bbcode_bar { padding: 4px; float: left; } " +
-			".bbcode_separator {float: left; background-color: #DDD; padding-top: 26px; padding-left: 1px; margin-right: 4px; margin-left: 4px} " +
-			".bbcode_bbcode { cursor: pointer; } " +
-			".bbcode_color_newline { clear: both; } " +
-			".bbcode_color { float: left; cursor: pointer; padding: 4px; } " +
-			".bbcode_smiley { cursor: pointer; } " +
-			".bbcode_command { cursor: pointer; border: 1px groove threedface; background-color: #DDD; padding-left: 2px; padding-right: 2px; } " +
 
 			".ftdb_panel { padding: 10px; width: auto; height: auto; position: absolute; display: block; z-index: 9000; top: 200px; left: 200px; background-color: #EEE; color: #111; border-radius: 15px; border: 2px solid #222; } " +
 
+			".bbcode_bar { padding: 4px; float: left; } " +
 			"#user_bbcode_bar { height: 30px; border-top: 1px solid #DDD; line-height: 18px; clear: both; } " +
 			".user_bbcode_separator {float: left; background-color: #DDD; padding-top: 30px; padding-left: 1px; margin-right: 4px; margin-left: 4px} " +
 			".bbcode_usersmiley { cursor: pointer; margin-right: 2px; margin-left: 2px; } " +
@@ -1514,8 +1467,7 @@ with_jquery(function ($) {
 			tabnames: {defaultVal: true, type: "check", requires: ["#check_tabnames"], frame: "#option_input", text: 'Autocomplétion des pseudos', reqLast: false},
 			addspaceafterautoc: {defaultVal: true, type: "check", requires: ["#check_addspaceafterautoc", "#check_tabnames"], frame: "#option_input", text: 'Ajouter un espace après l\'autocomplétion', reqLast: true},
 			changeautockey: {defaultVal: false, type: "check", requires: ["#check_changeautockey", "#check_tabnames"], frame: "#option_input", text: 'Autocompléter avec → au lieu de Tab', reqLast: true},
-			bbcode: {defaultVal: true, type: "check", requires: ["#check_bbcode"], frame: "#option_input", text: 'Barre de boutons de formatage BBcode', reqLast: false},
-			usersmiley: {defaultVal: false, type: "check", requires: ["#check_usersmiley", "#check_bbcode"], frame: "#option_input", text: 'Smileys personnalisés', reqLast: true},
+			usersmiley: {defaultVal: false, type: "check", requires: ["#check_usersmiley"], frame: "#option_input", text: 'Smileys personnalisés', reqLast: false},
 			chatcommands: {defaultVal: true, type: "check", requires: ["#check_chatcommands"], frame: "#option_input", text: 'Commandes dans le chat (/mp <user>)', reqLast: false},
 
 			userlist: {defaultVal: true, type: "check", requires: ["#check_userlist"], frame: "#option_userlist", text: 'Annonce des (dé)connexions des utilisateurs &amp; recherche', reqLast: false},
@@ -1676,8 +1628,8 @@ with_jquery(function ($) {
 	userDB.loadUsers();
 	dbg("Starting");
 	initCSS();
-	if(optionsDB.get("bbcode")) {
-		addBBcodeBar();
+	if(optionsDB.get("usersmiley")) {
+		addUSmileyBar();
 	}
 	if(optionsDB.get("autoresize")){
 		setResizer();
