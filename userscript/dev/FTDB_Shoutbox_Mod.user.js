@@ -5,20 +5,17 @@
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
 // @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
 // @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.5.2.5
+// @version         0.5.4.5
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
-// From 0.4.19
-// ! Image load scroll
-// ! Sound on quote when ignore
-// * CSS rework
-// ! Harmony CSS hacks
-// From 0.5.0
-// ! DefaultVal undefined
 // From 0.5.1
 // - BBCode
 // ! Usersmileys
+// From 0.5.2
+// ! Usersmiley click
+// From 0.5.3
+// ! Usersmiley bar
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -35,7 +32,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.5.2.25';
+	var debug = true, scriptVersion = '0.5.4.25';
 	var d = new Date().getTime();
 	// Debug
 	dbg = function (str) {
@@ -788,9 +785,12 @@ with_jquery(function ($) {
 	//////////////////////////////
 	var addUSmileyBar = function () {
 		userBbcodeHeight = 30;
-			
-		$(".markItUpContainer").append('<div id="user_bbcode_bar"><div id="bbcode_usersmiley" class="bbcode_bar"></div><div class="user_bbcode_separator"></div><div id="bbcode_usersmiley_control" class="bbcode_bar"><a href="#" id="usersmiley_management">Gérer les smileys</a></div></div>');
+		setTimeout(loadUSmiley, 200);
+	};
 
+	var loadUSmiley = function () {
+		$(".markItUpContainer").append('<div id="user_bbcode_bar"><div id="bbcode_usersmiley" class="bbcode_bar"></div><div class="user_bbcode_separator"></div><div id="bbcode_usersmiley_control" class="bbcode_bar"><a href="#" id="usersmiley_management">Gérer les smileys</a></div></div>');
+		var sText = $("#shout_text");
 		// User smileys
 		userData.loadData();
 		$.each(userData.getAll("smiley"), function (k,v) {
@@ -1618,6 +1618,10 @@ with_jquery(function ($) {
 		}
 	};
 
+	var loadFinished = function() {
+		scrollNow();
+		$("#shout_text").trigger("click"); // Remove "Ecrire un message"
+	};
 
 	userDB.loadUsers();
 	dbg("Starting");
@@ -1664,6 +1668,6 @@ with_jquery(function ($) {
 	}
 	setWindowFocusTracker();
 	optionsPanelCreator();
-	$("#shout_text").trigger("click"); // Remove "Ecrire un message"
+	setTimeout(loadFinished, 200);
 	dbg("Loading took " + (new Date().getTime() - d) + "ms");
 });
