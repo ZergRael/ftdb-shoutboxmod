@@ -1,11 +1,11 @@
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
-// From 0.5.1
-// - BBCode
-// ! Usersmileys
 // From 0.5.2
 // ! Usersmiley click
 // From 0.5.3
 // ! Usersmiley bar
+// From 0.5.4
+// ! Options button
+// ! Userlist desactivation
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -22,7 +22,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.5.4.23';
+	var debug = true, scriptVersion = '0.5.4.31';
 	var d = new Date().getTime();
 	// Debug
 	dbg = function (str) {
@@ -1196,7 +1196,7 @@ with_jquery(function ($) {
 	// Options main frame create on click
 	/////////////////////////////////////
 	var optionsPanelCreator = function () {
-		$(".fil").append(' &lt; <a href="#" id="open_options_panel">Options</a>');
+		$(".tech").append(' | <a href="#" id="open_options_panel">SMod Options</a>');
 		
 		$("#open_options_panel").click(function () {
 			if($("#options_panel").length) {
@@ -1630,6 +1630,9 @@ with_jquery(function ($) {
 	}
 	if(optionsDB.get("userlist")) {
 		prepareUserList();
+	}
+	else {
+		$("#mod_shoutbox").prepend($(".frame_list"));
 	}
 	resizeShoutbox();
 	if(optionsDB.get("stickyscroll")) {
