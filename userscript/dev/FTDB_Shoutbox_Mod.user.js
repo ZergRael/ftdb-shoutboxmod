@@ -5,17 +5,21 @@
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
 // @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
 // @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.5.4.5
+// @version         0.6.0.1
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
-// From 0.5.1
-// - BBCode
-// ! Usersmileys
 // From 0.5.2
 // ! Usersmiley click
 // From 0.5.3
 // ! Usersmiley bar
+// From 0.5.4
+// ! Options button
+// ! Userlist desactivation
+// + Text colors remove option
+// + Shoutbox width option
+// ! Scroll at start
+// + Options backup/restore
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -32,14 +36,14 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.5.4.25';
-	var d = new Date().getTime();
+	var debug = true, scriptVersion = '0.6.0.1';
+	var dt = new Date().getTime();
 	// Debug
 	dbg = function (str) {
 		if(!debug) { return; }
 
-		var d = new Date();
-		console.log("[" + d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds() + ":" + d.getMilliseconds() + "] " + str);
+		var dd = new Date();
+		console.log("[" + dd.getHours() + ":" + dd.getMinutes() + ":" + dd.getSeconds() + ":" + dd.getMilliseconds() + "] " + str);
 	};
 	debugShoutboxMod = function () {
 		var debugData = [];
@@ -71,8 +75,10 @@ with_jquery(function ($) {
 		$.each(userData.data, function (k, v) {
 			userData.clearData(k);
 		});
+		GM_setValue("data_saved", false);
 		userDB.clearUsers();
 		alert("ShoutboxMod data cleared !");
+		window.location.reload();
 	};
 
 	/////////////////////////////////////
@@ -124,6 +130,7 @@ with_jquery(function ($) {
 			}
 			
 			var showThisMessage = true;
+			// Images/Smiley process
 			message.find("img").each(function () {
 				if($(this).hasClass("bbcode_smiley")) {
 					if(optionsDB.get("hidesmileys")) {
@@ -140,16 +147,26 @@ with_jquery(function ($) {
 				}
 			});
 
+			// Flash process
 			if(optionsDB.get("hideflash")) {
 				message.find("embed").each(function () {
 					$(this).replaceWith('<a href="' + $(this).attr("src") + '">' + $(this).attr("src") + '</a>');
 				});
 			}
 
+			// User highlight process
 			if(optionsDB.get("highlightuser")) {
 				message.addClass("u_" + message.find("a").first().text().toLowerCase().replace(".", "_"));
 			}
+
+			// Colors process
+			if(optionsDB.get("hidecolor")) {
+				message.find("span").each(function () {
+					$(this).replaceWith($(this).text());
+				});
+			}
 			
+			// Links process
 			if(processLink) {
 				message.find("a").each(function (i, e) {
 					var aLink = $(this);
@@ -248,6 +265,7 @@ with_jquery(function ($) {
 			}
 		});
 
+		// Sound process
 		if(notifySound) {
 			playNotification("quote");
 		}
@@ -341,7 +359,7 @@ with_jquery(function ($) {
 	var addTextToShoutbox = function (from, fromLink, fromColorClass, htmlContent) {
 		if(!$("#SHOUT_MESSAGE").length) { return; }
 
-		var d = new Date(), h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
+		var dm = new Date(), h = dm.getHours(), m = dm.getMinutes(), s = dm.getSeconds();
 		var time = (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
 		if(optionsDB.get("revertshout")) {
 			$("#SHOUT_MESSAGE").append('<ul class="shout_rowalt" style="display: block; "><li class="time">' + time + '</li><li class="msg"> <a class="' + fromColorClass +'" href="' + fromLink + '">' + from + '</a> : ' + htmlContent + '</li></ul>');
@@ -367,13 +385,13 @@ with_jquery(function ($) {
 	// Scrolls to required location
 	///////////////////////////////
 	var scrollNow = function (scrollUp) {
-		dbg("[Shoutbox] Scrolling now");
+		dbg("[Shoutbox] Scrolling now | stickyScroll : " + stickyScroll);
 		var shoutBox = $("#SHOUT_MESSAGE");
 		if(!optionsDB.get("revertshout")) { return; }
 
 		var thisScrollUp = (scrollUp ? scrollUp : 0);
 		if(stickyScroll) {
-			shoutBox.scrollTop(shoutBox[0].scrollHeight - shoutBox.height()); // Scroll to bottom
+			shoutBox.scrollTop(shoutBox[0].scrollHeight); // Scroll to bottom
 		}
 		else {
 			shoutBox.scrollTop(shoutBox.scrollTop() - thisScrollUp); // Stabilize scrolling (due to removal of first elements)
@@ -792,7 +810,6 @@ with_jquery(function ($) {
 		$(".markItUpContainer").append('<div id="user_bbcode_bar"><div id="bbcode_usersmiley" class="bbcode_bar"></div><div class="user_bbcode_separator"></div><div id="bbcode_usersmiley_control" class="bbcode_bar"><a href="#" id="usersmiley_management">Gérer les smileys</a></div></div>');
 		var sText = $("#shout_text");
 		// User smileys
-		userData.loadData();
 		$.each(userData.getAll("smiley"), function (k,v) {
 			$("#bbcode_usersmiley").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" class="bbcode_usersmiley" />');
 		});
@@ -1000,7 +1017,7 @@ with_jquery(function ($) {
 				if($("#receive_mp_frame").length) {
 					$("#receive_mp_frame").remove();
 				}
-				$("#website").append('<div id="receive_mp_frame" class="ftdb_panel mp_frame"><div class="mp_from">De : <b>' + MPSender + '</b></div><div class="mp_subject">Sujet : ' + MPSubject + '</div><div class="mp_text">' + $($(data).find("div")[0]).html() + '</div><div class="mp_buttons" id="receive_mp_buttons"><input type="button" id="reply_frame_show" value=" Répondre au MP " /> <input type="button" id="close_mp" value=" Fermer " /></div></div>');
+				$("#website").append('<div id="receive_mp_frame" class="ftdb_panel mp_frame"><div class="mp_from">De : <b>' + MPSender + '</b></div><div class="mp_subject">Sujet : ' + MPSubject + '</div><div class="mp_text">' + $($(data).find('div [style="padding: 0 0 10px 0; line-height: 25px"]')[0]).html() + '</div><div class="mp_buttons" id="receive_mp_buttons"><input type="button" id="reply_frame_show" value=" Répondre au MP " /> <input type="button" id="close_mp" value=" Fermer " /></div></div>');
 				$("#reply_frame_show").click(function () { appendMPReplyFrame(MPId, MPSenderId, MPSender); });
 				$("#close_mp").click(function () { $("#receive_mp_frame").remove(); });
 			}
@@ -1191,6 +1208,219 @@ with_jquery(function ($) {
 		});
 	};
 
+	////////////////////////////
+	// backupOptions()
+	// Send anonymous statistics
+	////////////////////////////
+	var backupOptions = function() {
+		var md5pseudo = calcMD5(uMyself);
+		if(userData.isFirstLaunch()) {
+			var url = 'http://thetabx.net/backup/check/ftdb/shoutbox/' + md5pseudo + '/';
+			$.get(url, function(data) {
+				if(data == "OK" && confirm("[FTDB Shoutbox Mod]\nIl semblerait que vos options aient disparu.\nCependant, elles ont été sauvegardées avec l'option de backup.\n\nAttention : 'Annuler' écrasera définitevement la sauvegarde.\n\nVoulez-vous les récupérer ?")) {
+					var urlBk = 'http://thetabx.net/backup/retrieve/ftdb/shoutbox/' + md5pseudo + '/';
+					$.get(urlBk, function(data) {
+						var splittedData = data.split("\n");
+						var splittedOptions = splittedData[0].split("|");
+						$.each(splittedOptions, function(k, v) {
+							var splitOpt = v.split(":");
+							var value = splitOpt[1];
+							if(value == "true") {
+								value = true;
+							}
+							else if(value == "false") {
+								value = false;
+							}
+							optionsDB.set(splitOpt[0], value);
+						});
+						userDB.setFriendsRaw(splittedData[1]);
+						$.each(JSON.parse(splittedData[2]), function(k, v) {
+							userData.setAllRaw(k, JSON.stringify(v));
+						});
+						window.location.reload();
+					});
+				}
+			});
+		}
+		else {
+			var url = 'http://thetabx.net/backup/upload/ftdb/shoutbox/' + md5pseudo + '/';
+
+			var optionsData = "";
+			$.each(optionsDB.opt, function (k, v) {
+				if(v.type != "button") {
+					optionsData += k + ":" + optionsDB.get(k) + "|";
+				}
+			});
+
+			$.post(url, { 'options': optionsData.substring(0, optionsData.length - 1), 'friends': JSON.stringify(userDB.users), 'userdata': JSON.stringify(userData.data) });
+		}
+	} 
+
+	var hex_chr = "0123456789abcdef";
+	function rhex(num)
+	{
+		str = "";
+		for(j = 0; j <= 3; j++) {
+			str += hex_chr.charAt((num >> (j * 8 + 4)) & 0x0F) + hex_chr.charAt((num >> (j * 8)) & 0x0F);
+		}
+		return str;
+	}
+
+	/*
+	* Convert a string to a sequence of 16-word blocks, stored as an array.
+	* Append padding bits and the length, as described in the MD5 standard.
+	*/
+	function str2blks_MD5(str)
+	{
+		nblk = ((str.length + 8) >> 6) + 1;
+		blks = new Array(nblk * 16);
+		for(i = 0; i < nblk * 16; i++) { blks[i] = 0; }
+		for(i = 0; i < str.length; i++) {
+			blks[i >> 2] |= str.charCodeAt(i) << ((i % 4) * 8);
+		}
+		blks[i >> 2] |= 0x80 << ((i % 4) * 8);
+		blks[nblk * 16 - 2] = str.length * 8;
+		return blks;
+	}
+
+	/*
+	* Add integers, wrapping at 2^32. This uses 16-bit operations internally 
+	* to work around bugs in some JS interpreters.
+	*/
+	function add(x, y)
+	{
+		var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+		var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+		return (msw << 16) | (lsw & 0xFFFF);
+	}
+
+	/*
+	* Bitwise rotate a 32-bit number to the left
+	*/
+	function rol(num, cnt)
+	{
+		return (num << cnt) | (num >>> (32 - cnt));
+	}
+
+	/*
+	* These functions implement the basic operation for each round of the
+	* algorithm.
+	*/
+	function cmn(q, a, b, x, s, t)
+	{
+		return add(rol(add(add(a, q), add(x, t)), s), b);
+	}
+	function ff(a, b, c, d, x, s, t)
+	{
+		return cmn((b & c) | ((~b) & d), a, b, x, s, t);
+	}
+	function gg(a, b, c, d, x, s, t)
+	{
+		return cmn((b & d) | (c & (~d)), a, b, x, s, t);
+	}
+	function hh(a, b, c, d, x, s, t)
+	{
+		return cmn(b ^ c ^ d, a, b, x, s, t);
+	}
+	function ii(a, b, c, d, x, s, t)
+	{
+		return cmn(c ^ (b | (~d)), a, b, x, s, t);
+	}
+
+	/*
+	* Take a string and return the hex representation of its MD5.
+	*/
+	function calcMD5(str)
+	{
+		x = str2blks_MD5(str);
+		a =  1732584193;
+		b = -271733879;
+		c = -1732584194;
+		d =  271733878;
+
+		for(i = 0; i < x.length; i += 16)
+		{
+			olda = a;
+			oldb = b;
+			oldc = c;
+			oldd = d;
+
+			a = ff(a, b, c, d, x[i+ 0], 7 , -680876936);
+			d = ff(d, a, b, c, x[i+ 1], 12, -389564586);
+			c = ff(c, d, a, b, x[i+ 2], 17,  606105819);
+			b = ff(b, c, d, a, x[i+ 3], 22, -1044525330);
+			a = ff(a, b, c, d, x[i+ 4], 7 , -176418897);
+			d = ff(d, a, b, c, x[i+ 5], 12,  1200080426);
+			c = ff(c, d, a, b, x[i+ 6], 17, -1473231341);
+			b = ff(b, c, d, a, x[i+ 7], 22, -45705983);
+			a = ff(a, b, c, d, x[i+ 8], 7 ,  1770035416);
+			d = ff(d, a, b, c, x[i+ 9], 12, -1958414417);
+			c = ff(c, d, a, b, x[i+10], 17, -42063);
+			b = ff(b, c, d, a, x[i+11], 22, -1990404162);
+			a = ff(a, b, c, d, x[i+12], 7 ,  1804603682);
+			d = ff(d, a, b, c, x[i+13], 12, -40341101);
+			c = ff(c, d, a, b, x[i+14], 17, -1502002290);
+			b = ff(b, c, d, a, x[i+15], 22,  1236535329);    
+
+			a = gg(a, b, c, d, x[i+ 1], 5 , -165796510);
+			d = gg(d, a, b, c, x[i+ 6], 9 , -1069501632);
+			c = gg(c, d, a, b, x[i+11], 14,  643717713);
+			b = gg(b, c, d, a, x[i+ 0], 20, -373897302);
+			a = gg(a, b, c, d, x[i+ 5], 5 , -701558691);
+			d = gg(d, a, b, c, x[i+10], 9 ,  38016083);
+			c = gg(c, d, a, b, x[i+15], 14, -660478335);
+			b = gg(b, c, d, a, x[i+ 4], 20, -405537848);
+			a = gg(a, b, c, d, x[i+ 9], 5 ,  568446438);
+			d = gg(d, a, b, c, x[i+14], 9 , -1019803690);
+			c = gg(c, d, a, b, x[i+ 3], 14, -187363961);
+			b = gg(b, c, d, a, x[i+ 8], 20,  1163531501);
+			a = gg(a, b, c, d, x[i+13], 5 , -1444681467);
+			d = gg(d, a, b, c, x[i+ 2], 9 , -51403784);
+			c = gg(c, d, a, b, x[i+ 7], 14,  1735328473);
+			b = gg(b, c, d, a, x[i+12], 20, -1926607734);
+
+			a = hh(a, b, c, d, x[i+ 5], 4 , -378558);
+			d = hh(d, a, b, c, x[i+ 8], 11, -2022574463);
+			c = hh(c, d, a, b, x[i+11], 16,  1839030562);
+			b = hh(b, c, d, a, x[i+14], 23, -35309556);
+			a = hh(a, b, c, d, x[i+ 1], 4 , -1530992060);
+			d = hh(d, a, b, c, x[i+ 4], 11,  1272893353);
+			c = hh(c, d, a, b, x[i+ 7], 16, -155497632);
+			b = hh(b, c, d, a, x[i+10], 23, -1094730640);
+			a = hh(a, b, c, d, x[i+13], 4 ,  681279174);
+			d = hh(d, a, b, c, x[i+ 0], 11, -358537222);
+			c = hh(c, d, a, b, x[i+ 3], 16, -722521979);
+			b = hh(b, c, d, a, x[i+ 6], 23,  76029189);
+			a = hh(a, b, c, d, x[i+ 9], 4 , -640364487);
+			d = hh(d, a, b, c, x[i+12], 11, -421815835);
+			c = hh(c, d, a, b, x[i+15], 16,  530742520);
+			b = hh(b, c, d, a, x[i+ 2], 23, -995338651);
+
+			a = ii(a, b, c, d, x[i+ 0], 6 , -198630844);
+			d = ii(d, a, b, c, x[i+ 7], 10,  1126891415);
+			c = ii(c, d, a, b, x[i+14], 15, -1416354905);
+			b = ii(b, c, d, a, x[i+ 5], 21, -57434055);
+			a = ii(a, b, c, d, x[i+12], 6 ,  1700485571);
+			d = ii(d, a, b, c, x[i+ 3], 10, -1894986606);
+			c = ii(c, d, a, b, x[i+10], 15, -1051523);
+			b = ii(b, c, d, a, x[i+ 1], 21, -2054922799);
+			a = ii(a, b, c, d, x[i+ 8], 6 ,  1873313359);
+			d = ii(d, a, b, c, x[i+15], 10, -30611744);
+			c = ii(c, d, a, b, x[i+ 6], 15, -1560198380);
+			b = ii(b, c, d, a, x[i+13], 21,  1309151649);
+			a = ii(a, b, c, d, x[i+ 4], 6 , -145523070);
+			d = ii(d, a, b, c, x[i+11], 10, -1120210379);
+			c = ii(c, d, a, b, x[i+ 2], 15,  718787259);
+			b = ii(b, c, d, a, x[i+ 9], 21, -343485551);
+
+			a = add(a, olda);
+			b = add(b, oldb);
+			c = add(c, oldc);
+			d = add(d, oldd);
+		}
+		return rhex(a) + rhex(b) + rhex(c) + rhex(d);
+	}
+
 	///////////////////////////////
 	// appendDiv(divName, h1_title)
 	// Used to create new divs
@@ -1206,7 +1436,7 @@ with_jquery(function ($) {
 	// Options main frame create on click
 	/////////////////////////////////////
 	var optionsPanelCreator = function () {
-		$(".fil").append(' &lt; <a href="#" id="open_options_panel">Options</a>');
+		$(".tech").append(' | <a href="#" id="open_options_panel">SMod Options</a>');
 		
 		$("#open_options_panel").click(function () {
 			if($("#options_panel").length) {
@@ -1225,7 +1455,7 @@ with_jquery(function ($) {
 					$(data.frame).append('<span id="o_' + option + '">' + (data.reqLast ? '╚ ' : '') + '<input type="text" id="txt_' + option + '" size="2" value="' + optionsDB.get(option) + '"/> ' + data.text + ' (' +  data.minVal + '-' + data.maxVal + ')' + '<br /></span>');
 				}
 				else if(data.type == "button") {
-					$(data.frame).append('<span id="o_' + option + '">' + (data.reqLast ? '╚ ' : '') + '<input type="button" id="button_' + option + '" value="' + data.text + '"/><br /></span>');
+					$(data.frame).append('<span id="o_' + option + '">' + (data.reqLast ? '╚ ' : '') + '<input type="button" id="button_' + option + '" value=" ' + data.text + ' "/><br /></span>');
 					$("#button_" + option).click(function () { if(confirm(data.confirm)) { data.funct(); }});
 				}
 				else if(data.type == "select") {
@@ -1342,10 +1572,10 @@ with_jquery(function ($) {
 		$("head").append("<style>" +
 			(optionsDB.get("autoresize") ?
 				"#SHOUT_MESSAGE { overflow-x: hidden; } " +
-				"#top_content .arian_nav { width: 90%; } " +
+				"#top_content .arian_nav { width: " + optionsDB.get("shoutbox_width") + "%; } " +
 				".mod_shoutbox .markItUp { width: auto; } " +
 				".mod_shoutbox .markItUpContainer { width: auto; } " +
-				"#MAIN { width: 90%; } " +
+				"#MAIN { width: " + optionsDB.get("shoutbox_width") + "%; } " +
 				".big_box h1 { width: " + (isHarmonyCss ? '100.7%' : '100%') + "; } " +
 				"#mod_shoutbox { height: " + optionsDB.get("shoutbox_height") + "px; } " + 
 				"#shout_text { width: " + (isHarmonyCss ? '98.7%' : '99%' ) + "; } " +
@@ -1446,6 +1676,7 @@ with_jquery(function ($) {
 			hidesmileys: {defaultVal: false, type: "check", requires: ["#check_hidesmileys", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les smileys par leur équivalent texte', reqLast: false},
 			hideimages: {defaultVal: false, type: "check", requires: ["#check_hideimages", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les images par leur lien', reqLast: false},
 			hideflash: {defaultVal: true, type: "check", requires: ["#check_hideflash", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les embed flash par leur lien', reqLast: false},
+			hidecolor: {defaultVal: false, type: "check", requires: ["#check_hidecolor", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Empêcher la coloration du texte', reqLast: false},
 			stickyscroll: {defaultVal: true, type: "check", requires: ["#check_stickyscroll", "#check_revertshout", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Scroll statique intelligent', reqLast: false},
 			avoidprotocolchange: {defaultVal: true, type: "check", requires: ["#check_avoidprotocolchange", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Eviter les changements http/https des liens', reqLast: false},
 			autolinks: {defaultVal: true, type: "check", requires: ["#check_autolinks", "#check_avoidprotocolchange", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les liens vers un torrent/topic par leur titre', reqLast: true},
@@ -1471,8 +1702,9 @@ with_jquery(function ($) {
 			resetbanlist: {type: "button", requires: ["#check_banlist", "#check_userlist"], frame: "#option_userlist", text: 'Réinitialiser la liste d\'amis/ignorés', confirm: 'Etes-vous sur de supprimer la liste des amis/ignorés ?', funct: function () { userDB.clearUsers(); }, reqLast: false},
 
 			autoresize : {defaultVal: false, type: "check", requires: ["#check_autoresize"], frame: "#option_resize", text: 'Redimensionnement de la shoutbox', reqLast: false},
+			shoutbox_width: {defaultVal: 90, type: "number", requires: ["#txt_shoutbox_width", "#check_autoresize"], minVal: 10, maxVal: 100, frame: "#option_resize", text: 'Largeur de la shoutbox (en %)', reqLast: false},
 			shoutbox_height: {defaultVal: 376, type: "number", requires: ["#txt_shoutbox_height", "#check_autoresize"], minVal: 86, maxVal: 10000, frame: "#option_resize", text: 'Hauteur de la shoutbox', reqLast: false},
-			resizeclic : {defaultVal: false, type: "check", requires: ["#check_resizeclic", "#check_autoresize"], frame: "#option_resize", text: 'Redimensionnement au clic', reqLast: true},
+			resizeclic : {defaultVal: false, type: "check", requires: ["#check_resizeclic", "#check_autoresize"], frame: "#option_resize", text: 'Redimensionnement de la hauteur au clic', reqLast: true},
 			irc_height: {defaultVal: 440, type: "number", requires: ["#txt_irc_height", "#check_autoresize"], minVal: 200, maxVal: 10000, frame: "#option_resize", text: 'Hauteur du client IRC Web', reqLast: false},
 
 			javairc: {defaultVal: false, type: "check", requires: ["#check_javairc"], frame: "#option_other", text: 'Ajout d\'un client IRC Web sous la Shoutbox', reqLast: false},
@@ -1481,7 +1713,9 @@ with_jquery(function ($) {
 			soundmpchoice: {defaultVal: "Aucune", type: "select", requires: ["#select_soundmpchoice", "#check_blinkmp"], frame: "#option_other", text: 'Notification sonore à la réception de MPs', options: soundFileArray, onChangeOpt: function() { playNotification("mp", true, $(this).val()); }, reqLast: true},
 			inshoutmp: {defaultVal: true, type: "check", requires: ["#check_inshoutmp", "#check_blinkmp"], frame: "#option_other", text: 'Lire/Répondre/Créer des MP depuis la shoutbox', reqLast: true},
 			font: {defaultVal: "Par défaut", type: "select", requires: ["#select_font"], frame: "#option_other", text: 'Police', options: ["Par défaut", "Arial", "Comic Sans MS", "Times New Roman"], reqLast: false},
+			optionsbak: {defaultVal: true, type: "check", requires: ["#check_optionsbak"], frame: "#option_other", text: 'Backup des options/amis/smileys perso', reqLast: false},
 			statistics: {defaultVal: true, type: "check", requires: ["#check_statistics"], frame: "#option_other", text: 'Autoriser l\'envoi de statistiques anonymes', reqLast: false},
+			resetall: {type: "button", requires: [], frame: "#option_other", text: 'Réinitialiser toutes les données (options/amis/smileys)', confirm: 'Etes-vous sur de réinitialiser l\'ensemble des données ?', funct: function () { resetShoutboxMod(); }, reqLast: false},
 		},
 
 		set: function (k, v) {
@@ -1531,6 +1765,9 @@ with_jquery(function ($) {
 		getAll: function(s) {
 			return this.data[s];
 		},
+		setAllRaw: function(s, str) {
+			GM_setValue("data_" + s, str);
+		},
 		clearData: function(s) {
 			this.data[s] = {};
 			GM_setValue("data_" + s, JSON.stringify(this.data[s]));
@@ -1543,6 +1780,13 @@ with_jquery(function ($) {
 					thisData.data[k] = JSON.parse(dataGM);
 				}
 			});
+		},
+		isFirstLaunch: function() {
+			if(GM_getValue("data_saved") != true) {
+				GM_setValue("data_saved", true);
+				return true;
+			}
+			return false;
 		}
 	};
 
@@ -1606,6 +1850,9 @@ with_jquery(function ($) {
 			GM_setValue("users", JSON.stringify(this.users));
 		},
 
+		setFriendsRaw: function(str) {
+			GM_setValue("users", str);
+		},
 		clearUsers: function () {
 			this.users =  {};
 			GM_setValue("users", JSON.stringify(this.users));
@@ -1619,11 +1866,12 @@ with_jquery(function ($) {
 	};
 
 	var loadFinished = function() {
-		scrollNow();
 		$("#shout_text").trigger("click"); // Remove "Ecrire un message"
+		scrollNow();
 	};
 
 	userDB.loadUsers();
+	userData.loadData();
 	dbg("Starting");
 	initCSS();
 	if(optionsDB.get("usersmiley")) {
@@ -1640,6 +1888,9 @@ with_jquery(function ($) {
 	}
 	if(optionsDB.get("userlist")) {
 		prepareUserList();
+	}
+	else {
+		$("#mod_shoutbox").prepend($(".frame_list"));
 	}
 	resizeShoutbox();
 	if(optionsDB.get("stickyscroll")) {
@@ -1663,11 +1914,15 @@ with_jquery(function ($) {
 	if(optionsDB.get("statistics")) {
 		sendStatistics();
 	}
+	if(optionsDB.get("optionsbak")) {
+		backupOptions();
+	}
 	if(optionsDB.get("blinkmp")) {
 		blinkIncommingMP();
 	}
 	setWindowFocusTracker();
 	optionsPanelCreator();
+	scrollNow();
 	setTimeout(loadFinished, 200);
-	dbg("Loading took " + (new Date().getTime() - d) + "ms");
+	dbg("Loading took " + (new Date().getTime() - dt) + "ms");
 });

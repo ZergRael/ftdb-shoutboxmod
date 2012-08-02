@@ -1,6 +1,6 @@
 {
   "name": "FTDB Shoutbox Mod",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "description": "Améliorations et ajout de fonctions pour la Shoutbox de FTDB",
   "icons": { "16": "ftdb-shoutboxmod-16.png",
   		  "48": "ftdb-shoutboxmod-48.png",
