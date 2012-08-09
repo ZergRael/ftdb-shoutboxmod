@@ -12,6 +12,9 @@
 // ! Update announcer
 // + Multi browser backup
 // + Ping
+// + IRC autocomplete mode
+// + ": " after autocomplete
+// ! GoogleCode link instead of forums
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -657,7 +660,7 @@ with_jquery(function ($) {
 	var selectedUserName = "", keyPressed = 0;
 	var shoutBoxText_OnKeyUp = function (e) {
 		keyPressed = (keyPressed == 0 ? keyPressed : keyPressed - 1);
-		if(e.which < 32 || e.which > 111 || e.ctrlKey || e.altKey || (e.shiftKey && e.which > 36 && e.which < 41)) { return; }
+		if(e.which < 32 || e.which > 111 || e.ctrlKey || e.altKey || (e.shiftKey && e.which > 36 && e.which < 41) || optionsDB.get("tabirc")) { return; }
 
 		var inputBox = $(this);
 		selectedUserName = "";
@@ -665,7 +668,7 @@ with_jquery(function ($) {
 		if(!inputText.length) { return; }
 
 		var lastInputWord = inputText[inputText.length - 1].toLowerCase();
-		if(lastInputWord.length > 2 && lastInputWord.length < 16) { 
+		if(lastInputWord.length > 2 && lastInputWord.length < 20) { 
 			var usersTab = getUserByNamePartial(lastInputWord);
 			if(usersTab.length == 1 && keyPressed == 0) {
 				delay(function () {
@@ -695,7 +698,7 @@ with_jquery(function ($) {
 	// shoutBoxText_OnKeyDown(keyEvent)
 	// Remove tab default and autocomplete
 	//////////////////////////////////////
-	var autocompleteKey = 9, lastKeypress;
+	var autocompleteKey = 9, lastKeypress, autocompleteStartWord = "";
 	var shoutBoxText_OnKeyDown = function (e) {
 		var textBox = $(this);
 		if(optionsDB.get("tabnames")) {
@@ -704,11 +707,59 @@ with_jquery(function ($) {
 			}
 			lastKeypress = e.which;
 			if(e.which == autocompleteKey) {
-				if(textBox[0].selectionStart != textBox[0].selectionEnd && textBox[0].selectionEnd == textBox.val().length && selectedUserName.length) {
-					textBox.val(textBox.val().substring(0, (textBox[0].selectionEnd - selectedUserName.length)).concat(selectedUserName) + (optionsDB.get("addspaceafterautoc") ? ' ' : ''));
+				var inputText = textBox.val().split(' ');
+				if(optionsDB.get("tabirc")) {
+					if(!inputText.length) { return; }
+
+					var lastInputWord = inputText[inputText.length - 1].toLowerCase();
+					if(autocompleteStartWord == "") {
+						if(lastInputWord.length > 0 && lastInputWord.length < 20) { 
+							autocompleteStartWord = lastInputWord;
+							var usersTab = getUserByNamePartial(lastInputWord);
+							if(usersTab.length) {
+								var userAutoC = usersTab[0].name;
+								textBox.val(textBox.val().substring(0, (textBox[0].selectionEnd - lastInputWord.length)).concat(userAutoC) + (optionsDB.get("addspaceafterautoc") ? ' ' + (optionsDB.get("addcolonafterautoc") && inputText.length == 1 ? ': ' : '') : ''));
+							}
+						}
+					}
+					else {
+						var i = 1, charsBeforeWord = 0;
+						if(!lastInputWord.length) {
+							charsBeforeWord += 1;
+							i++;
+							lastInputWord = inputText[inputText.length - i].toLowerCase();
+						}
+						if(lastInputWord == ":") {
+							charsBeforeWord += 2;
+							i++;
+							lastInputWord = inputText[inputText.length - i].toLowerCase();
+						}
+						var usersTab = getUserByNamePartial(autocompleteStartWord);
+						if(usersTab.length) {
+							var userAutoC = "";
+							$.each(usersTab, function(k, v) {
+								if(v.name.toLowerCase() == lastInputWord) {
+									userAutoC = usersTab[(k + 1 >= usersTab.length ? 0 : k + 1)].name;
+									return false;
+								}
+							});
+							if(userAutoC == "") {
+								userAutoC = usersTab[0].name;
+							}
+							textBox.val(textBox.val().substring(0, (textBox[0].selectionEnd - lastInputWord.length - charsBeforeWord)).concat(userAutoC) + (optionsDB.get("addspaceafterautoc") ? ' ' + (optionsDB.get("addcolonafterautoc") && charsBeforeWord == 3 ? ': ' : '') : ''));
+						}
+					}
 				}
-				textBox[0].selectionStart = textBox.val().length;
+				else {
+					if(textBox[0].selectionStart != textBox[0].selectionEnd && textBox[0].selectionEnd == textBox.val().length && selectedUserName.length) {
+						textBox.val(textBox.val().substring(0, (textBox[0].selectionEnd - selectedUserName.length)).concat(selectedUserName) + (optionsDB.get("addspaceafterautoc") ? ' ' + (optionsDB.get("addcolonafterautoc") && inputText.length == 1 ? ': ' : '') : ''));
+					}
+					textBox[0].selectionStart = textBox.val().length;
+				}
 				e.preventDefault();
+			}
+			else {
+				autocompleteStartWord = "";
 			}
 			if(e.which == 13 && textBox[0].selectionStart != textBox[0].selectionEnd && textBox[0].selectionEnd == textBox.val().length && selectedUserName.length) {
 				textBox.val(textBox.val().substring(0, textBox[0].selectionStart));
@@ -971,7 +1022,7 @@ with_jquery(function ($) {
 						return false;
 					}
 					MP.id = MP.url.match("\\d{3,9}");
-					addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="/?section=ACCOUNT&module=mod_account_mailbox#box_mod_account_mailbox">Nouveau message privé</a> de ' + MP.sender + ': <a href="' + MP.url + '">' + MP.subject + '</a>' + (optionsDB.get("inshoutmp") ? ' (<a href="' + MP.url + '" id="readmp_' + MP.id + '">Le lire ici</a>)' : ''));
+					addTextToShoutbox("[FTDB Shoutbox Mod]", "https://code.google.com/p/ftdb-shoutboxmod/", "class_70", '<a href="/?section=ACCOUNT&module=mod_account_mailbox#box_mod_account_mailbox">Nouveau message privé</a> de ' + MP.sender + ': <a href="' + MP.url + '">' + MP.subject + '</a>' + (optionsDB.get("inshoutmp") ? ' (<a href="' + MP.url + '" id="readmp_' + MP.id + '">Le lire ici</a>)' : ''));
 					if(optionsDB.get("inshoutmp")) {
 						$("#readmp_" + MP.id).click(MP, function () {
 							if(createMPReceiveFrame(MP.id, MP.sender, MP.senderId, MP.subject)) {
@@ -1187,7 +1238,7 @@ with_jquery(function ($) {
 			}
 			else if(lastVersion.match(new RegExp("\\d+\\.\\d+\\.\\d+"))) {
 				dbg("[Statistics] New version available");
-				addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">Une nouvelle version est disponible (' + lastVersion + ') !</a>');
+				addTextToShoutbox("[FTDB Shoutbox Mod]", "https://code.google.com/p/ftdb-shoutboxmod/", "class_70", '<a href="https://code.google.com/p/ftdb-shoutboxmod/">Une nouvelle version est disponible (' + lastVersion + ') !</a>');
 			}
 			else if(lastVersion == "error") {
 				dbg("[Statistics] Can't get version from server");
@@ -1462,7 +1513,7 @@ with_jquery(function ($) {
 			}
 			$("#website").append('<div class="ftdb_panel" id="options_panel"><h3><center>Options FTDB Shoutbox Mod</center></h3>' +
 				'<form><fieldset id="option_shoutbox"><legend>Shoutbox</legend></fieldset><fieldset id="option_input"><legend>Zone d\'insertion de texte</legend></fieldset><fieldset id="option_userlist"><legend>Liste des utilisateurs</legend></fieldset><fieldset id="option_resize"><legend>Dimensions</legend></fieldset><fieldset id="option_other"><legend>Autres</legend></fieldset></form>' +
-				'<div style="font-size:0.8em;text-align:right;">By <a href="/?section=ACCOUNT_INFOS&id=775418">Zergrael</a> | Version <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + scriptVersion + '</a>' + (lastVersion == "KO" || lastVersion == "OK" ? '' : ' | Nouvelle version disponnible : <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + lastVersion + '</a> !') + '</div>' +
+				'<div style="font-size:0.8em;text-align:right;">By <a href="/?section=ACCOUNT_INFOS&id=775418">Zergrael</a> | Version <a href="https://code.google.com/p/ftdb-shoutboxmod/">' + scriptVersion + '</a>' + (lastVersion == "KO" || lastVersion == "OK" ? '' : ' | Nouvelle version disponnible : <a href="https://code.google.com/p/ftdb-shoutboxmod/">' + lastVersion + '</a> !') + '</div>' +
 				'<center><input type="button" id="save_options_panel" value=" Enregistrer " />  <input type="button" id="close_options_panel" value=" Annuler " /></center></div>');
 			$.each(optionsDB.opt, function (option, data) {
 				if(data.type == "check") {
@@ -1708,7 +1759,9 @@ with_jquery(function ($) {
 			fade_in_duration: {defaultVal: 1000, type: "number", requires: ["#txt_fade_in_duration", "#check_shoutbox"], minVal: 0, maxVal: 4000, frame: "#option_shoutbox", text: 'Durée du fade in des nouveaux messages en ms', reqLast: false},
 
 			tabnames: {defaultVal: true, type: "check", requires: ["#check_tabnames"], frame: "#option_input", text: 'Autocomplétion des pseudos', reqLast: false},
+			tabirc: {defaultVal: false, type: "check", requires: ["#check_tabirc", "#check_tabnames"], frame: "#option_input", text: 'Méthode IRC (Pas de suggestion)', reqLast: true},
 			addspaceafterautoc: {defaultVal: true, type: "check", requires: ["#check_addspaceafterautoc", "#check_tabnames"], frame: "#option_input", text: 'Ajouter un espace après l\'autocomplétion', reqLast: true},
+			addcolonafterautoc: {defaultVal: false, type: "check", requires: ["#check_addcolonafterautoc", "#check_addspaceafterautoc", "#check_tabnames"], frame: "#option_input", text: 'Ajouter ": " si l\'autocomplétion est en début de phrase', reqLast: true},
 			changeautockey: {defaultVal: false, type: "check", requires: ["#check_changeautockey", "#check_tabnames"], frame: "#option_input", text: 'Autocompléter avec → au lieu de Tab', reqLast: true},
 			usersmiley: {defaultVal: false, type: "check", requires: ["#check_usersmiley"], frame: "#option_input", text: 'Smileys personnalisés', reqLast: false},
 			chatcommands: {defaultVal: true, type: "check", requires: ["#check_chatcommands"], frame: "#option_input", text: 'Commandes dans le chat (/mp <user>)', reqLast: false},
