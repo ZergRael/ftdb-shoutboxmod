@@ -3,19 +3,10 @@
 // @namespace       http://thetabx.net
 // @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB (Version IE)
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
-// @version         0.6.1.13
+// @version         0.6.2.13
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
-// From 0.5.3
-// ! Usersmiley bar
-// From 0.5.4
-// ! Options button
-// ! Userlist desactivation
-// + Text colors remove option
-// + Shoutbox width option
-// ! Scroll at start
-// + Options backup/restore
 // From 0.6.0
 // ! Update announcer
 // + Multi browser backup
@@ -23,6 +14,8 @@
 // + IRC autocomplete mode
 // + ": " after autocomplete
 // ! GoogleCode link instead of forums
+// From 0.6.1
+// ! In shout MP sending
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -39,7 +32,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.6.1.12';
+	var debug = true, scriptVersion = '0.6.2.12';
 	var dt = new Date().getTime();
 	// Debug
 	dbg = function (str) {
@@ -616,7 +609,7 @@ with_jquery(function ($) {
 					if(e2.which == 2) { return true; }
 
 					$("#context_menu").remove();
-					if(createMPSendFrame(userE.attr("href").substring(27), userName)) { return false; }
+					if(createMPSendFrame(userE.attr("href").substring(29), userName)) { return false; }
 					return true;
 				});
 			}
@@ -800,8 +793,8 @@ with_jquery(function ($) {
 						if(!username.length)
 							username = getUserByNamePartial(splitStr[1].toLowerCase(), true);
 						if(username.length == 1) {
-							dbg("MP to " + username[0].name + " : " + username[0].secureNick + "[" + username[0].userId + "]");
-							createMPSendFrame(username[0].userId, username[0].name);
+							dbg("MP to " + username[0].name + " : " + username[0].secureNick + "[" + username[0].hash + "]");
+							createMPSendFrame(username[0].hash, username[0].name);
 							textBox.val("");
 						}
 						else {
@@ -836,14 +829,14 @@ with_jquery(function ($) {
 		if(friendlist) {
 			$.each(userDB.users, function (secureNick, userData) {
 				if(userData.userName.toLowerCase().indexOf(name) == 0) {
-					usersTab.push({'secureNick':secureNick, 'name': userData.userName, 'userId': userData.url.substring(27)});
+					usersTab.push({'secureNick':secureNick, 'name': userData.userName, 'hash': userData.url.substring(29)});
 				}
 			});
 		}
 		else {
 			$.each(oldUserList, function (secureNick, userData) {
 				if(userData.text().toLowerCase().indexOf(name) == 0) {
-					usersTab.push({'secureNick':secureNick, 'name': userData.text(), 'userId': userData.attr("href").substring(27)});
+					usersTab.push({'secureNick':secureNick, 'name': userData.text(), 'hash': userData.attr("href").substring(29)});
 				}
 			});
 		}
@@ -1016,7 +1009,7 @@ with_jquery(function ($) {
 				var MPData = [];
 				htmlData.each(function (i, e) {
 					if($(this).find(".messages_unread img").attr("src") == "themes/images/message_read_1.png") {
-						MPData.push({"subject": $(this).children(".messages_subject").text(), "url": $(this).find(".messages_subject a").attr("href"), "sender": $(this).children(".users_username").text(), "senderId": $(this).find(".users_username a").attr("href").substring(27)});
+						MPData.push({"subject": $(this).children(".messages_subject").text(), "url": $(this).find(".messages_subject a").attr("href"), "sender": $(this).children(".users_username").text(), "senderHash": $(this).find(".users_username a").attr("href").substring(29)});
 					}
 				});
 
@@ -1033,7 +1026,7 @@ with_jquery(function ($) {
 					addTextToShoutbox("[FTDB Shoutbox Mod]", "https://code.google.com/p/ftdb-shoutboxmod/", "class_70", '<a href="/?section=ACCOUNT&module=mod_account_mailbox#box_mod_account_mailbox">Nouveau message privé</a> de ' + MP.sender + ': <a href="' + MP.url + '">' + MP.subject + '</a>' + (optionsDB.get("inshoutmp") ? ' (<a href="' + MP.url + '" id="readmp_' + MP.id + '">Le lire ici</a>)' : ''));
 					if(optionsDB.get("inshoutmp")) {
 						$("#readmp_" + MP.id).click(MP, function () {
-							if(createMPReceiveFrame(MP.id, MP.sender, MP.senderId, MP.subject)) {
+							if(createMPReceiveFrame(MP.id, MP.sender, MP.senderHash, MP.subject)) {
 								return false;
 							}
 						});
@@ -1062,7 +1055,7 @@ with_jquery(function ($) {
 	// MP reader frame
 	/////////////////////////
 	var MPTopPos = 200, MPLeftPos = 200;
-	var createMPReceiveFrame = function (MPId, MPSender, MPSenderId, MPSubject) {
+	var createMPReceiveFrame = function (MPId, MPSender, MPSenderHash, MPSubject) {
 		cleanAllFrames(false);
 
 		$.ajax({
@@ -1072,7 +1065,7 @@ with_jquery(function ($) {
 					$("#receive_mp_frame").remove();
 				}
 				$("#website").append('<div id="receive_mp_frame" class="ftdb_panel mp_frame"><div class="mp_from">De : <b>' + MPSender + '</b></div><div class="mp_subject">Sujet : ' + MPSubject + '</div><div class="mp_text">' + $($(data).find('div [style="padding: 0 0 10px 0; line-height: 25px"]')[0]).html() + '</div><div class="mp_buttons" id="receive_mp_buttons"><input type="button" id="reply_frame_show" value=" Répondre au MP " /> <input type="button" id="close_mp" value=" Fermer " /></div></div>');
-				$("#reply_frame_show").click(function () { appendMPReplyFrame(MPId, MPSenderId, MPSender); });
+				$("#reply_frame_show").click(function () { appendMPReplyFrame(MPId, MPSenderHash, MPSender); });
 				$("#close_mp").click(function () { $("#receive_mp_frame").remove(); });
 			}
 		});
@@ -1083,7 +1076,7 @@ with_jquery(function ($) {
 	// appendMPReplyFrame()
 	// MP replyer frame
 	///////////////////////
-	var appendMPReplyFrame = function (MPId, userId, userName) {
+	var appendMPReplyFrame = function (MPId, hash, userName) {
 		cleanAllFrames(true);
 		
 		$("#receive_mp_buttons").hide();
@@ -1096,7 +1089,8 @@ with_jquery(function ($) {
 			$.ajax({
 				type: "POST",
 				url: "/?section=ACCOUNT&module=mod_account_mailbox&id=" + MPId,
-				data: { uid: userId, msg: $("#mp_text_input").val() },
+				// uid seems useless here
+				data: { uid: hash, msg: $("#mp_text_input").val() },
 				success: function (data) { encodeURIComponent = oldEncodeURIComponent; }
 			});
 			$("#reply_mp_buttons").hide();
@@ -1115,7 +1109,7 @@ with_jquery(function ($) {
 	// createMPSendFrame()
 	// MP writer frame
 	/////////////////////////
-	var createMPSendFrame = function (userId, userName) {
+	var createMPSendFrame = function (hash, userName) {
 		cleanAllFrames(false);
 		
 		$("#website").append('<div id="send_mp_frame" class="ftdb_panel mp_frame"><div class="mp_to">A : <b>' + userName + '</b></div><div class="mp_subject"><input type="text" id="mp_subject_input"/></div><div class="mp_text"><textarea id="mp_text_input"></textarea></div><div class="mp_buttons" id="send_mp_buttons"><input type="button" id="send_mp" value=" Envoyer le MP " /> <input type="button" id="cancel_mp" value=" Annuler " /></div><div class="confirm">Message envoyé !</div></div>');
@@ -1126,7 +1120,7 @@ with_jquery(function ($) {
 			encodeURIComponent = URLEncode2;
 			$.ajax({
 				type: "POST",
-				url: "/?section=ACCOUNT_INFOS&module=mod_account_sendmsg&ajax=1&id=" + userId,
+				url: "/?section=ACCOUNT_INFOS&module=mod_account_sendmsg&ajax=1&hash=" + hash,
 				data: { titre: $("#mp_subject_input").val(), message: $("#mp_text_input").val() },
 				success: function (data) { encodeURIComponent = oldEncodeURIComponent; }
 			});
