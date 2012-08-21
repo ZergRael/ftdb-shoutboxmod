@@ -27,7 +27,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.6.2.12';
+	var debug = true, scriptVersion = '0.6.2.45';
 	var dt = new Date().getTime();
 	// Debug
 	dbg = function (str) {
