@@ -5,19 +5,17 @@
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
 // @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
 // @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.6.2.10
+// @version         0.6.2.24
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
-// From 0.6.0
-// ! Update announcer
-// + Multi browser backup
-// + Ping
-// + IRC autocomplete mode
-// + ": " after autocomplete
-// ! GoogleCode link instead of forums
 // From 0.6.1
 // ! In shout MP sending
+// From 0.6.2
+// + Smiley title in list
+// + Image link in shoutbox
+// ! Options tabs
+// + Macros
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -34,7 +32,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.6.2.9';
+	var debug = true, scriptVersion = '0.6.2.23';
 	var dt = new Date().getTime();
 	// Debug
 	dbg = function (str) {
@@ -143,7 +141,12 @@ with_jquery(function ($) {
 						$(this).replaceWith('<a href="' + $(this).attr("src") + '">' + $(this).attr("src") + '</a>');
 					}
 					else {
-						$(this).bind("load", function () { scrollNow(); });
+						if(optionsDB.get("linkimages")) {
+							$(this).replaceWith($('<a href="' + $(this).attr("src") + '"><img src="' + $(this).attr("src") + '" /></a>').bind("load", function () { scrollNow(); }));
+						}
+						else {
+							$(this).bind("load", function () { scrollNow(); });
+						}
 					}
 				}
 			});
@@ -807,6 +810,15 @@ with_jquery(function ($) {
 					}
 					return false;
 				}
+				else {
+					var str = firstWord.substring(1);
+					$.each(userData.data.macro, function (nom, text) {
+						if(nom == str) {
+							splitStr[0] = text;
+						}
+					});
+					textBox.val(splitStr.join(" "));
+				}
 			}
 
 			if(optionsDB.get("usersmiley")) {
@@ -860,7 +872,7 @@ with_jquery(function ($) {
 		var sText = $("#shout_text");
 		// User smileys
 		$.each(userData.getAll("smiley"), function (k,v) {
-			$("#bbcode_usersmiley").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" class="bbcode_usersmiley" />');
+			$("#bbcode_usersmiley").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" title="' + k + '" class="bbcode_usersmiley" />');
 		});
 		$(".bbcode_usersmiley").click(function() {
 			sText.val(sText.val().substring(0, sText[0].selectionStart) + ' [img]' + $(this).attr("src") + '[/img] ' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
@@ -917,7 +929,7 @@ with_jquery(function ($) {
 			});
 
 			$.each(userData.getAll("smiley"), function (k,v) {
-				$("#usm_del").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" class="usersmiley_rem" />');
+				$("#usm_del").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" title="Supprimer ' + k + '" class="usersmiley_rem" />');
 			});
 
 			$(".usersmiley_rem").click(function() {
@@ -936,6 +948,80 @@ with_jquery(function ($) {
 			});
 
 			$("#close_smiley_panel").click(function() { $("#smiley_panel").remove(); });
+			return false;
+		});
+	};
+
+	///////////////////////////////
+	// addMacroBar()
+	// add a bar with macro gestion
+	///////////////////////////////
+	var addMacroBar = function () {
+		userBbcodeHeight = 30;
+		setTimeout(loadMacro, 250);
+	};
+
+	var loadMacro = function () {
+		if(optionsDB.get("usersmiley")) {
+			$("#user_bbcode_bar").append('<div class="user_bbcode_separator"></div><div class="bbcode_bar"><a href="#" id="macro_management">Gérer les macros</a></div>');
+		}
+		else {
+			$(".markItUpContainer").append('<div id="user_bbcode_bar"><div id="bbcode_usersmiley_control" class="bbcode_bar"><a href="#" id="macro_management">Gérer les macros</a></div></div>');
+		}
+
+		$("#macro_management").click(function() {
+			if($("#macro_panel").length) { $("#macro_panel").remove(); }
+			$("#website").append('<div id="macro_panel" class="ftdb_panel"><h3><center>Gestion des macros</center></h3>' +
+			'<div class="macro_panel_div" id="macro_add">Ajouter une macro<div class="macro_add_input">Nom : /<input type="text" id="macro_add_name" size="28" ></div><div class="macro_add_input">Texte : <input type="text" id="macro_add_text" size="28" /></div><center><input type="button" id="macro_add_btn" value=" Ajouter " /></center></div>' +
+			'<div class="macro_panel_div" id="macro_del">Supprimer une macro</br></div>' +
+			'<center><input type="button" id="purge_macro" value=" Tout supprimer " /> <input type="button" id="close_macro_panel" value=" Fermer " /></center></div>');
+			$("#macro_add_btn").click(function() {
+				if($("#macro_management option").length >= 30) {
+					alert("Il y a trop de macros !");
+					return;
+				}
+				
+				var text = $("#macro_add_text").val();
+				if(text == "" || text === null) {
+					$("#macro_add_text").val("Texte incorrect");
+					return;
+				}
+
+				var nom = $("#macro_add_name").val();
+				if(nom == "" || nom === null || nom.indexOf(" ") != -1) {
+					$("#macro_add_name").val("Nom incorrect. Ne doit pas contenir d'espace");
+					return;
+				}
+
+				if(userData.get("macro", nom) == undefined && nom != "mp" && nom != "me" && nom != "error") {
+					userData.set("macro", nom, text);
+
+					$("#macro_del").append($('<a class="macro_rem" href="#">/' + nom + '</a><br />').click(function() {
+						userData.unset("smiley", nom);
+						$(this).remove();
+					}));
+				}
+				else { alert("Cette macro existe déjà !"); }
+			});
+
+			$.each(userData.getAll("macro"), function (k,v) {
+				$("#macro_del").append('<a class="macro_rem" href="#">/' + k + '</a><br />');
+			});
+
+			$(".macro_rem").click(function() {
+				var name = $(this).text().substring(1);
+				userData.unset("macro", name);
+				$(this).remove();
+			});
+
+			$("#purge_macro").click(function() {
+				if(confirm("Êtes-vous sur de supprimer toutes les macros ?")) {
+					$('.macro_rem').each(function() { $(this).remove(); });
+					userData.clearData("macro");
+				}
+			});
+
+			$("#close_macro_panel").click(function() { $("#macro_panel").remove(); });
 			return false;
 		});
 	};
@@ -1515,8 +1601,8 @@ with_jquery(function ($) {
 				$("#options_panel").fadeOut(600, function () { $(this).remove(); }); 
 				return false;
 			}
-			$("#website").append('<div class="ftdb_panel" id="options_panel"><h3><center>Options FTDB Shoutbox Mod</center></h3>' +
-				'<form><fieldset id="option_shoutbox"><legend>Shoutbox</legend></fieldset><fieldset id="option_input"><legend>Zone d\'insertion de texte</legend></fieldset><fieldset id="option_userlist"><legend>Liste des utilisateurs</legend></fieldset><fieldset id="option_resize"><legend>Dimensions</legend></fieldset><fieldset id="option_other"><legend>Autres</legend></fieldset></form>' +
+			$("#website").append('<div class="ftdb_panel" id="options_panel"><h3>Options FTDB Shoutbox Mod</h3><span id="obtn_shoutbox" class="obtn">Shoutbox</span><span id="obtn_input" class="obtn">Champ de saisie</span><span id="obtn_userlist" class="obtn">Liste d\'utilisateurs</span><span id="obtn_resize" class="obtn">Redimensionnement</span><span id="obtn_notif" class="obtn">Notifications</span><span id="obtn_other" class="obtn">Autres</span>' +
+				'<div id="options_box"><div id="option_shoutbox"></div><div id="option_input"></div><div id="option_userlist"></div><div id="option_resize"></div><div id="option_notif"></div><div id="option_other"></div></div>' +
 				'<div style="font-size:0.8em;text-align:right;">By <a href="/?section=ACCOUNT_INFOS&id=775418">Zergrael</a> | Version <a href="https://code.google.com/p/ftdb-shoutboxmod/">' + scriptVersion + '</a>' + (lastVersion == "KO" || lastVersion == "OK" ? '' : ' | Nouvelle version disponnible : <a href="https://code.google.com/p/ftdb-shoutboxmod/">' + lastVersion + '</a> !') + '</div>' +
 				'<center><input type="button" id="save_options_panel" value=" Enregistrer " />  <input type="button" id="close_options_panel" value=" Annuler " /></center></div>');
 			$.each(optionsDB.opt, function (option, data) {
@@ -1543,11 +1629,28 @@ with_jquery(function ($) {
 				
 				$.each(data.requires, function (k, reqOption) {
 					if(!k) { return; }
-					$(reqOption).change(function () { $("#o_" + option).toggle($(reqOption).is(":checked")); });
+					$(reqOption).change(function () { 
+						//$("#o_" + option).toggle($(reqOption).is(":checked"));
+						$("#o_" + option).toggleClass("opt_disabled", !$(reqOption).is(":checked"));
+						if($("#o_" + option + " input").length) {
+							$("#o_" + option + " input").attr("disabled", !$(reqOption).is(":checked"));
+						}
+						else {
+							$("#o_" + option + " select").attr("disabled", !$(reqOption).is(":checked"));
+						}
+					});
 				});
 			});
 			$.each(optionsDB.opt, function (option, data) { $("#check_" + option).trigger("change"); });
 			$("#options_panel").hide().fadeIn(600);
+
+			$(".obtn").click(function () {
+				$(".obtn").removeClass("obtn_press");
+				$(this).addClass("obtn_press");
+				$("#options_box div").hide();
+				$("#option_" + $(this).attr("id").substring(5)).show();
+			});
+			$("#obtn_shoutbox").click();
 			
 			$("#save_options_panel").click(function () {
 				$.each(optionsDB.opt, function (option, data) {
@@ -1704,9 +1807,12 @@ with_jquery(function ($) {
 			".backup_title { font-size: 1.4em; font-weight: bold; text-align: center; border-bottom: 1px solid #DDD; } " +
 			"#backup_buttons { text-align: center; margin-top: 12px; } " + 
 
-			"#options_panel fieldset { border: 2px groove threedface; padding: 6px; } " +
-			"#options_panel legend { color: #111; } " +
+			"#options_box { margin-top: 9px; border: 2px groove threedface; padding: 6px; } " +
 			"#options_panel a:hover { color: #FFF; } " +
+			"#options_panel h3 { text-align: center; margin-bottom: 6px; } " +
+			".opt_disabled { color: gray; } " +
+			".obtn { background-color:#f5f5f5; border:1px solid #dedede; border-top:1px solid #eee; border-left:1px solid #eee; font-weight:bold; color:#565656; cursor:pointer; padding:5px 10px 6px 7px; } " +
+			".obtn_press { background-color:#6299c5; border:1px solid #6299c5; color:#fff; } " +
 			"</style>");
 		$("head").append('<style id="resizableCSS"></style>');
 	}
@@ -1746,49 +1852,57 @@ with_jquery(function ($) {
 	////////////////
 	var optionsDB = {
 		opt: {
-			shoutbox: {defaultVal: true, type: "check", requires: ["#check_shoutbox"], frame: "#option_shoutbox", text: 'Traitement de la shoutbox shoutbox', reqLast: false},
+			// Shoutbox
+			shoutbox: {defaultVal: true, type: "check", requires: ["#check_shoutbox"], frame: "#option_shoutbox", text: 'Traitement de la shoutbox', reqLast: false},
 			revertshout: {defaultVal: true, type: "check", requires: ["#check_revertshout", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Inverser shoutbox', reqLast: true},
 			hidesmileys: {defaultVal: false, type: "check", requires: ["#check_hidesmileys", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les smileys par leur équivalent texte', reqLast: false},
 			hideimages: {defaultVal: false, type: "check", requires: ["#check_hideimages", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les images par leur lien', reqLast: false},
 			hideflash: {defaultVal: true, type: "check", requires: ["#check_hideflash", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les embed flash par leur lien', reqLast: false},
 			hidecolor: {defaultVal: false, type: "check", requires: ["#check_hidecolor", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Empêcher la coloration du texte', reqLast: false},
+			linkimages: {defaultVal: false, type: "check", requires: ["#check_linkimages", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Rendre les images cliquables', reqLast: false},
 			stickyscroll: {defaultVal: true, type: "check", requires: ["#check_stickyscroll", "#check_revertshout", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Scroll statique intelligent', reqLast: false},
 			avoidprotocolchange: {defaultVal: true, type: "check", requires: ["#check_avoidprotocolchange", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Eviter les changements http/https des liens', reqLast: false},
 			autolinks: {defaultVal: true, type: "check", requires: ["#check_autolinks", "#check_avoidprotocolchange", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les liens vers un torrent/topic par leur titre', reqLast: true},
 			linknewtab: {defaultVal: false, type: "check", requires: ["#check_linknewtab", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Ouvrir les liens de la shoutbox dans un nouvel onglet', reqLast: false},
-			highlightuser:  {defaultVal: false, type: "check", requires: ["#check_highlightuser", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Mettre en surbrillance les posts d\'un utilisateur par passage de souris sur son pseudo', reqLast: false},
-			highlightuserfromlist:  {defaultVal: false, type: "check", requires: ["#check_highlightuserfromlist", "#check_highlightuser", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Depuis la liste d\'utilisteurs aussi', reqLast: true},
-			highlightquote:  {defaultVal: true, type: "check", requires: ["#check_highlightquote", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Mettre en surbrillance lorsque vous êtes cité', reqLast: false},
-			notificationchoice: {defaultVal: "Aucune", type: "select", requires: ["#select_notificationchoice", "#check_highlightquote", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Notification sonore lorsque vous êtes cité', options: soundFileArray, onChangeOpt: function() { playNotification("quote", true, $(this).val()); }, reqLast: true},
-			nmessagetitle:  {defaultVal: false, type: "check", requires: ["#check_nmessagetitle", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Indiquer le nombre de non lus de la shoutbox lorsque l\'onglet n\'est pas séléctionné', reqLast: false},
+			highlightuser: {defaultVal: false, type: "check", requires: ["#check_highlightuser", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Mettre en surbrillance les posts d\'un utilisateur par passage de souris sur son pseudo', reqLast: false},
+			highlightuserfromlist: {defaultVal: false, type: "check", requires: ["#check_highlightuserfromlist", "#check_highlightuser", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Depuis la liste d\'utilisteurs aussi', reqLast: true},
 			messages_to_display: {defaultVal: 30, type: "number", requires: ["#txt_messages_to_display", "#check_shoutbox"], minVal: 10, maxVal: 400, frame: "#option_shoutbox", text: 'Nombre max de messages à afficher', reqLast: false},
 			fade_in_duration: {defaultVal: 1000, type: "number", requires: ["#txt_fade_in_duration", "#check_shoutbox"], minVal: 0, maxVal: 4000, frame: "#option_shoutbox", text: 'Durée du fade in des nouveaux messages en ms', reqLast: false},
 
+			// Input
 			tabnames: {defaultVal: true, type: "check", requires: ["#check_tabnames"], frame: "#option_input", text: 'Autocomplétion des pseudos', reqLast: false},
 			tabirc: {defaultVal: false, type: "check", requires: ["#check_tabirc", "#check_tabnames"], frame: "#option_input", text: 'Méthode IRC (Pas de suggestion)', reqLast: true},
 			addspaceafterautoc: {defaultVal: true, type: "check", requires: ["#check_addspaceafterautoc", "#check_tabnames"], frame: "#option_input", text: 'Ajouter un espace après l\'autocomplétion', reqLast: true},
 			addcolonafterautoc: {defaultVal: false, type: "check", requires: ["#check_addcolonafterautoc", "#check_addspaceafterautoc", "#check_tabnames"], frame: "#option_input", text: 'Ajouter ": " si l\'autocomplétion est en début de phrase', reqLast: true},
 			changeautockey: {defaultVal: false, type: "check", requires: ["#check_changeautockey", "#check_tabnames"], frame: "#option_input", text: 'Autocompléter avec → au lieu de Tab', reqLast: true},
 			usersmiley: {defaultVal: false, type: "check", requires: ["#check_usersmiley"], frame: "#option_input", text: 'Smileys personnalisés', reqLast: false},
-			chatcommands: {defaultVal: true, type: "check", requires: ["#check_chatcommands"], frame: "#option_input", text: 'Commandes dans le chat (/mp <user>)', reqLast: false},
+			chatcommands: {defaultVal: false, type: "check", requires: ["#check_chatcommands"], frame: "#option_input", text: 'Macros textuelles', reqLast: false},
 
+			// Userlist
 			userlist: {defaultVal: true, type: "check", requires: ["#check_userlist"], frame: "#option_userlist", text: 'Annonce des (dé)connexions des utilisateurs &amp; recherche', reqLast: false},
 			user_disable_threshold: {defaultVal: 10, type: "number", requires: ["#txt_user_disable_threshold", "#check_userlist"], minVal: 0, maxVal: 100, frame: "#option_userlist", text: 'Nombre de (dé)connexions annoncées', reqLast: false},
 			banlist: {defaultVal: false, type: "check", requires: ["#check_banlist", "#check_userlist"], frame: "#option_userlist", text: 'Ajoute un menu contextuel au clic sur les utilisateurs (MP/Amis/Ignorer)', reqLast: false},
 			shoutbanlist: {defaultVal: false, type: "check", requires: ["#check_shoutbanlist", "#check_banlist", "#check_userlist", "#check_shoutbox"], frame: "#option_userlist", text: 'Depuis la shoutbox aussi', reqLast: true},
 			resetbanlist: {type: "button", requires: ["#check_banlist", "#check_userlist"], frame: "#option_userlist", text: 'Réinitialiser la liste d\'amis/ignorés', confirm: 'Etes-vous sur de supprimer la liste des amis/ignorés ?', funct: function () { userDB.clearUsers(); }, reqLast: false},
 
+			// Resize
 			autoresize : {defaultVal: false, type: "check", requires: ["#check_autoresize"], frame: "#option_resize", text: 'Redimensionnement de la shoutbox', reqLast: false},
 			shoutbox_width: {defaultVal: 90, type: "number", requires: ["#txt_shoutbox_width", "#check_autoresize"], minVal: 10, maxVal: 100, frame: "#option_resize", text: 'Largeur de la shoutbox (en %)', reqLast: false},
 			shoutbox_height: {defaultVal: 376, type: "number", requires: ["#txt_shoutbox_height", "#check_autoresize"], minVal: 86, maxVal: 10000, frame: "#option_resize", text: 'Hauteur de la shoutbox', reqLast: false},
 			resizeclic : {defaultVal: false, type: "check", requires: ["#check_resizeclic", "#check_autoresize"], frame: "#option_resize", text: 'Redimensionnement de la hauteur au clic', reqLast: true},
 			irc_height: {defaultVal: 440, type: "number", requires: ["#txt_irc_height", "#check_autoresize"], minVal: 200, maxVal: 10000, frame: "#option_resize", text: 'Hauteur du client IRC Web', reqLast: false},
 
+			// Notification
+			highlightquote: {defaultVal: true, type: "check", requires: ["#check_highlightquote", "#check_shoutbox"], frame: "#option_notif", text: 'Mettre en surbrillance lorsque vous êtes cité', reqLast: false},
+			notificationchoice: {defaultVal: "Aucune", type: "select", requires: ["#select_notificationchoice", "#check_highlightquote", "#check_shoutbox"], frame: "#option_notif", text: 'Notification sonore lorsque vous êtes cité', options: soundFileArray, onChangeOpt: function() { playNotification("quote", true, $(this).val()); }, reqLast: true},
+			blinkmp: {defaultVal: true, type: "check", requires: ["#check_blinkmp"], frame: "#option_notif", text: 'Faire clignoter &amp; annoncer l\'arrivée de nouveaux MPs', reqLast: false},
+			soundmpchoice: {defaultVal: "Aucune", type: "select", requires: ["#select_soundmpchoice", "#check_blinkmp"], frame: "#option_notif", text: 'Notification sonore à la réception de MPs', options: soundFileArray, onChangeOpt: function() { playNotification("mp", true, $(this).val()); }, reqLast: true},
+			nmessagetitle: {defaultVal: false, type: "check", requires: ["#check_nmessagetitle", "#check_shoutbox"], frame: "#option_notif", text: 'Nombre de messages non lus dans le titre', reqLast: false},
+			
+			// Others
 			javairc: {defaultVal: false, type: "check", requires: ["#check_javairc"], frame: "#option_other", text: 'Ajout d\'un client IRC Web sous la Shoutbox', reqLast: false},
 			hidegrades: {defaultVal: true, type: "check", requires: ["#check_hidegrades"], frame: "#option_other", text: 'Cacher la barre d\'info grades', reqLast: false},
-			blinkmp: {defaultVal: true, type: "check", requires: ["#check_blinkmp"], frame: "#option_other", text: 'Faire clignoter &amp; annoncer l\'arrivée de nouveaux MPs', reqLast: false},
-			soundmpchoice: {defaultVal: "Aucune", type: "select", requires: ["#select_soundmpchoice", "#check_blinkmp"], frame: "#option_other", text: 'Notification sonore à la réception de MPs', options: soundFileArray, onChangeOpt: function() { playNotification("mp", true, $(this).val()); }, reqLast: true},
-			inshoutmp: {defaultVal: true, type: "check", requires: ["#check_inshoutmp", "#check_blinkmp"], frame: "#option_other", text: 'Lire/Répondre/Créer des MP depuis la shoutbox', reqLast: true},
+			inshoutmp: {defaultVal: true, type: "check", requires: ["#check_inshoutmp", "#check_blinkmp"], frame: "#option_other", text: 'Lire/Répondre/Créer des MP depuis la shoutbox', reqLast: false},
 			ping: {defaultVal: false, type: "check", requires: ["#check_ping"], frame: "#option_other", text: 'Afficher le ping', reqLast: false},
 			font: {defaultVal: "Par défaut", type: "select", requires: ["#select_font"], frame: "#option_other", text: 'Police', options: ["Par défaut", "Arial", "Comic Sans MS", "Times New Roman"], reqLast: false},
 			optionsbak: {defaultVal: true, type: "check", requires: ["#check_optionsbak"], frame: "#option_other", text: 'Backup des options/amis/smileys perso', reqLast: false},
@@ -1797,6 +1911,7 @@ with_jquery(function ($) {
 		},
 
 		set: function (k, v) {
+			if(this.opt[k] == undefined) { return; }
 			this.opt[k].val = v;
 			GM_setValue(k, v);
 		},
@@ -1824,7 +1939,8 @@ with_jquery(function ($) {
 	////////////
 	var userData = {
 		data: {
-			smiley: {}
+			smiley: {},
+			macro: {}
 		},
 
 		set: function(s, k, v) {
@@ -1945,6 +2061,7 @@ with_jquery(function ($) {
 
 	var loadFinished = function() {
 		$("#shout_text").trigger("click"); // Remove "Ecrire un message"
+		stickyScroll = true;
 		scrollNow();
 	};
 
@@ -1954,6 +2071,9 @@ with_jquery(function ($) {
 	initCSS();
 	if(optionsDB.get("usersmiley")) {
 		addUSmileyBar();
+	}
+	if(optionsDB.get("chatcommands")) {
+		addMacroBar();
 	}
 	if(optionsDB.get("autoresize")){
 		setResizer();
