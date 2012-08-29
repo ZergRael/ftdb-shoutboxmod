@@ -6,6 +6,7 @@
 // + Image link in shoutbox
 // ! Options tabs
 // + Macros
+// ! Strange backup behavior
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -22,7 +23,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.6.2.119';
+	var debug = true, scriptVersion = '0.6.2.120';
 	var dt = new Date().getTime();
 	// Debug
 	dbg = function (str) {

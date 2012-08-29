@@ -3,7 +3,7 @@
 // @namespace       http://thetabx.net
 // @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB (Version IE)
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
-// @version         0.6.2.27
+// @version         0.6.2.28
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
@@ -14,6 +14,7 @@
 // + Image link in shoutbox
 // ! Options tabs
 // + Macros
+// ! Strange backup behavior
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -30,7 +31,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.6.2.26';
+	var debug = true, scriptVersion = '0.6.2.27';
 	var dt = new Date().getTime();
 	// Debug
 	dbg = function (str) {

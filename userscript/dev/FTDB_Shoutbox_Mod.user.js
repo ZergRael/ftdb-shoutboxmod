@@ -5,7 +5,7 @@
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
 // @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
 // @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.6.2.24
+// @version         0.6.2.25
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
@@ -16,6 +16,7 @@
 // + Image link in shoutbox
 // ! Options tabs
 // + Macros
+// ! Strange backup behavior
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -32,7 +33,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, scriptVersion = '0.6.2.23';
+	var debug = true, scriptVersion = '0.6.2.24';
 	var dt = new Date().getTime();
 	// Debug
 	dbg = function (str) {
