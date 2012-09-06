@@ -5,18 +5,22 @@
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
 // @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
 // @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.6.3
+// @version         0.6.4
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
-// From 0.6.1
-// ! In shout MP sending
 // From 0.6.2
 // + Smiley title in list
 // + Image link in shoutbox
 // ! Options tabs
 // + Macros
 // ! Strange backup behavior
+// From 0.6.3
+// ! Highlight
+// ! Userstats width
+// ! MP notification
+// ! Avoid erasing old link on image
+// ! Better stats send
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -33,7 +37,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = false, scriptVersion = '0.6.3';
+	var debug = false, scriptVersion = '0.6.4';
 	var dt = new Date().getTime();
 	// Debug
 	dbg = function (str) {
@@ -142,11 +146,12 @@ with_jquery(function ($) {
 						$(this).replaceWith('<a href="' + $(this).attr("src") + '">' + $(this).attr("src") + '</a>');
 					}
 					else {
+						$(this).bind("load", function () { scrollNow(); });
 						if(optionsDB.get("linkimages")) {
-							$(this).replaceWith($('<a href="' + $(this).attr("src") + '"><img src="' + $(this).attr("src") + '" /></a>').bind("load", function () { scrollNow(); }));
-						}
-						else {
-							$(this).bind("load", function () { scrollNow(); });
+							var imgParent = $(this).parent();
+							if(!imgParent.is("a")) {
+								imgParent.append($('<a href="' + $(this).attr("src") + '"></a>').append($(this)));
+							}
 						}
 					}
 				}
@@ -382,7 +387,7 @@ with_jquery(function ($) {
 	///////////////////////////
 	var uMyself;
 	var setQuoteHighlighter = function () {
-		uMyself = $(".welcome").children("a").first().text().toLowerCase().replace(".", "_");
+		uMyself = $(".welcome").find("a").first().text().toLowerCase().replace(".", "_");
 	};
 
 	///////////////////////////////
@@ -1124,11 +1129,12 @@ with_jquery(function ($) {
 				});
 
 				if(nMP != oldNMP) {
-					$(".welcome").html($(".welcome").html().replace("</a> " + oldNMP, "</a> " + nMP));
+					//$(".welcome").html($(".welcome").html().replace("</a> " + oldNMP, "</a> " + nMP));
+					$(".mailbox").text(nMP);
 				}
 
 				if(nMP > 0 && isWindowFocused) {
-					$(".welcome img:first").animate({width: '30', height: '24'}, 'fast').animate({width: '15', height: '12'}, 'fast').fadeTo('fast', 0).fadeTo('fast', 1);
+					$(".mailbox").fadeToggle('slow').fadeToggle('slow').delay(1700).fadeToggle('slow').fadeToggle('slow').delay(1700).fadeToggle('slow').fadeToggle('slow').delay(1700).fadeToggle('slow').fadeToggle('slow').delay(1700).fadeToggle('slow').fadeToggle('slow');
 				}
 
 				oldNMP = nMP;
@@ -1314,15 +1320,13 @@ with_jquery(function ($) {
 		//if(debug) { return; }
 
 		var url = 'http://thetabx.net/statistics/upload/ftdb/shoutbox/' + scriptVersion + '/';
-		$.each(optionsDB.opt, function (option, data) {
-			if(data.type == "number") {
-				url += optionsDB.get(option) + ':';
-			}
-			else if(data.type == "check") {
-				url += (optionsDB.get(option) ? '1' : '0') + ':';
+		var optionsData = "";
+		$.each(optionsDB.opt, function (k, v) {
+			if(v.type != "button") {
+				optionsData += k + ":" + optionsDB.get(k) + "|";
 			}
 		});
-		$.get(url, function (data) {
+		$.get(url + optionsData, function (data) {
 			lastVersion = data;
 			if(lastVersion == "OK") {
 				dbg("[Statistics] Up to date");
@@ -1740,7 +1744,8 @@ with_jquery(function ($) {
 	// initCSS()
 	// Init full CSS
 	////////////////
-	var isHarmonyCss = ($('select[name="select_css"]').val() == 3192);
+	//var isHarmonyCss = ($('select[name="select_css"]').val() == 3192);
+	var isHarmonyCss = false;
 	var initCSS = function () {
 		dbg("isHarmonyCss : " + isHarmonyCss);
 		var userlist_width = optionsDB.get("autoresize") ? 200 : 150;
@@ -1749,6 +1754,7 @@ with_jquery(function ($) {
 			(optionsDB.get("autoresize") ?
 				"#SHOUT_MESSAGE { overflow-x: hidden; } " +
 				"#top_content .arian_nav { width: " + optionsDB.get("shoutbox_width") + "%; } " +
+				"#top_content .users_stats { width: 100%; } " +
 				".mod_shoutbox .markItUp { width: auto; } " +
 				".mod_shoutbox .markItUpContainer { width: auto; } " +
 				"#MAIN { width: " + optionsDB.get("shoutbox_width") + "%; } " +
