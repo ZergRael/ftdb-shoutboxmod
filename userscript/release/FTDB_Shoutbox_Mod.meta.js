@@ -5,5 +5,5 @@
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE
 // @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
 // @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.6.4
+// @version         0.6.5
 // ==/UserScript==

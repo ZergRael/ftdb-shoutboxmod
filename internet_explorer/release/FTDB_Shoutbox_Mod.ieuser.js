@@ -3,22 +3,18 @@
 // @namespace       http://thetabx.net
 // @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB (Version IE)
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
-// @version         0.6.4
+// @version         0.6.5
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
-// From 0.6.2
-// + Smiley title in list
-// + Image link in shoutbox
-// ! Options tabs
-// + Macros
-// ! Strange backup behavior
 // From 0.6.3
 // ! Highlight
 // ! Userstats width
 // ! MP notification
 // ! Avoid erasing old link on image
 // ! Better stats send
+// From 0.6.4
+// ! Back to forum links
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -35,7 +31,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = false, scriptVersion = '0.6.4';
+	var debug = false, scriptVersion = '0.6.5';
 	var dt = new Date().getTime();
 	// Debug
 	dbg = function (str) {
@@ -1115,7 +1111,7 @@ with_jquery(function ($) {
 						return false;
 					}
 					MP.id = MP.url.match("\\d{3,9}");
-					addTextToShoutbox("[FTDB Shoutbox Mod]", "https://code.google.com/p/ftdb-shoutboxmod/", "class_70", '<a href="/?section=ACCOUNT&module=mod_account_mailbox#box_mod_account_mailbox">Nouveau message privé</a> de ' + MP.sender + ': <a href="' + MP.url + '">' + MP.subject + '</a>' + (optionsDB.get("inshoutmp") ? ' (<a href="' + MP.url + '" id="readmp_' + MP.id + '">Le lire ici</a>)' : ''));
+					addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="/?section=ACCOUNT&module=mod_account_mailbox#box_mod_account_mailbox">Nouveau message privé</a> de ' + MP.sender + ': <a href="' + MP.url + '">' + MP.subject + '</a>' + (optionsDB.get("inshoutmp") ? ' (<a href="' + MP.url + '" id="readmp_' + MP.id + '">Le lire ici</a>)' : ''));
 					if(optionsDB.get("inshoutmp")) {
 						$("#readmp_" + MP.id).click(MP, function () {
 							if(createMPReceiveFrame(MP.id, MP.sender, MP.senderHash, MP.subject)) {
@@ -1333,7 +1329,7 @@ with_jquery(function ($) {
 			}
 			else if(lastVersion.match(new RegExp("\\d+\\.\\d+\\.\\d+"))) {
 				dbg("[Statistics] New version available");
-				addTextToShoutbox("[FTDB Shoutbox Mod]", "https://code.google.com/p/ftdb-shoutboxmod/", "class_70", '<a href="https://code.google.com/p/ftdb-shoutboxmod/">Une nouvelle version est disponible (' + lastVersion + ') !</a>');
+				addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">Une nouvelle version est disponible (' + lastVersion + ') !</a>');
 			}
 			else if(lastVersion == "error") {
 				dbg("[Statistics] Can't get version from server");
@@ -1626,7 +1622,7 @@ with_jquery(function ($) {
 			}
 			$("#website").append('<div class="ftdb_panel" id="options_panel"><h3>Options FTDB Shoutbox Mod</h3><span id="obtn_shoutbox" class="obtn">Shoutbox</span><span id="obtn_input" class="obtn">Champ de saisie</span><span id="obtn_userlist" class="obtn">Liste d\'utilisateurs</span><span id="obtn_resize" class="obtn">Redimensionnement</span><span id="obtn_notif" class="obtn">Notifications</span><span id="obtn_other" class="obtn">Autres</span>' +
 				'<div id="options_box"><div id="option_shoutbox"></div><div id="option_input"></div><div id="option_userlist"></div><div id="option_resize"></div><div id="option_notif"></div><div id="option_other"></div></div>' +
-				'<div style="font-size:0.8em;text-align:right;">By <a href="/?section=ACCOUNT_INFOS&id=775418">Zergrael</a> | Version <a href="https://code.google.com/p/ftdb-shoutboxmod/">' + scriptVersion + '</a>' + (lastVersion == "KO" || lastVersion == "OK" ? '' : ' | Nouvelle version disponnible : <a href="https://code.google.com/p/ftdb-shoutboxmod/">' + lastVersion + '</a> !') + '</div>' +
+				'<div style="font-size:0.8em;text-align:right;">By <a href="/?section=ACCOUNT_INFOS&id=775418">Zergrael</a> | Version <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + scriptVersion + '</a>' + (lastVersion == "KO" || lastVersion == "OK" ? '' : ' | Nouvelle version disponnible : <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + lastVersion + '</a> !') + '</div>' +
 				'<center><input type="button" id="save_options_panel" value=" Enregistrer " />  <input type="button" id="close_options_panel" value=" Annuler " /></center></div>');
 			$.each(optionsDB.opt, function (option, data) {
 				if(data.type == "check") {
