@@ -12,6 +12,7 @@
 // ! Friend/ignore management
 // + Tab in idle order
 // ! Avoid text coloration
+// ! Friend class updater
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -30,7 +31,7 @@ with_jquery(function ($) {
 	"use strict";
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 72, scriptVersion = '0.6.5.419';
+	var debug = true, revision = 72, scriptVersion = '0.6.5.424';
 	var dt = new Date().getTime();
 	// Debug
 	var dbg = function (str) {
@@ -557,9 +558,11 @@ with_jquery(function ($) {
 
 			if(user.classId != thisClassId) {
 				var thisUserA = $("#u_" + secureNick);
-				thisUserA.attr("class", thisUser.attr("class").replace(user.classId, thisClassId));
-				user.classId = thisClassId;
-				userDB.updateUserClass(secureNick, thisClassId);
+				if(thisUserA.length) {
+					thisUserA.attr("class", thisUserA.attr("class").replace(user.classId, thisClassId));
+					user.classId = thisClassId;
+					userDB.updateUserClass(secureNick, thisClassId);
+				}
 			}
 
 			if(user.incomming) {
