@@ -1421,11 +1421,12 @@ with_jquery(function ($) {
 	// sendStatistics()
 	// Send anonymous statistics
 	////////////////////////////
-	var lastVersion = "error";
 	var sendStatistics = function () {
 		$.ajax({
-			url: 'http://thetabx.net/statistics/upload/ftdb/shoutbox/' + scriptVersion + '/' + URLEncode(JSON.stringify(optionsDB.getSendable())),
-			dataType: 'jsonp',
+			type: 'POST',
+			url: urls.statistics + scriptVersion + '/',
+			data: optionsDB.getSendable(),
+			dataType: 'json',
 			success: function(data) {
 				if(data.error) {
 					dbg("[Statistics] Error returned");
@@ -1456,8 +1457,9 @@ with_jquery(function ($) {
 		if(userData.isFirstLaunch()) {
 			var urlC = 
 			$.ajax({
-				url: 'http://thetabx.net/backup/check_json/ftdb/shoutbox/' + md5pseudo + '/2/',
-				dataType: 'jsonp',
+				type: 'GET',
+				url: urls.check + md5pseudo,
+				dataType: 'json',
 				success: function(data) {
 					dbg("[Backup] Can I backup from this ?");
 					if(data && data.status && data.status != "KO") {
@@ -1482,20 +1484,12 @@ with_jquery(function ($) {
 							if(!radioChecked) { return; }
 							var OSUA = radioChecked.val().split(" - ");
 							$.ajax({
-								url: 'http://thetabx.net/backup/retrieve_json/ftdb/shoutbox/' + md5pseudo + '/' + OSUA[0] + '/' + OSUA[1] + '/',
-								dataType: 'jsonp',
+								type: 'GET',
+								url: urls.retrieve + md5pseudo + '/' + OSUA[0] + '/' + OSUA[1] + '/',
+								dataType: 'json',
 								success: function(data) {
-									var splittedOptions = data.options.split("|");
-									$.each(splittedOptions, function(k, v) {
-										var splitOpt = v.split(":");
-										var value = splitOpt[1];
-										if(value == "true") {
-											value = true;
-										}
-										else if(value == "false") {
-											value = false;
-										}
-										optionsDB.set(splitOpt[0], value);
+									$.each(data.options, function(k, v) {
+										optionsDB.set(k, v);
 									});
 									userDB.setFriendsRaw(data.friends);
 									$.each(JSON.parse(data.userData), function(k, v) {
@@ -1511,7 +1505,7 @@ with_jquery(function ($) {
 			});
 		}
 		else {
-			var urlB = 'http://thetabx.net/backup/upload/ftdb/shoutbox/' + md5pseudo + '/3/';
+			var urlB = urls.store + md5pseudo;
 			$.post(urlB, { 'options': JSON.stringify(optionsDB.getSendable()), 'friends': JSON.stringify(userDB.users), 'userdata': JSON.stringify(userData.data) });
 		}
 	};
@@ -2036,6 +2030,14 @@ with_jquery(function ($) {
 					GM_setValue(k, v.defaultVal);
 				}
 			});
+		},
+		storeAll: function() {
+			$.ajax({
+				type: 'POST',
+				url: urls.store + calcMD5(uMyself) + '/options/',
+				data: optionsDB.getSendable(),
+				dataType: 'json'
+			});
 		}
 	};
 
@@ -2078,6 +2080,14 @@ with_jquery(function ($) {
 				if(dataGM !== undefined) {
 					thisData.data[k] = JSON.parse(dataGM);
 				}
+			});
+		},
+		storeAll: function() {
+			$.ajax({
+				type: 'POST',
+				url: urls.store + calcMD5(uMyself) + '/userData/',
+				data: optionsDB.getSendable(),
+				dataType: 'json'
 			});
 		},
 		isFirstLaunch: function() {
@@ -2175,6 +2185,13 @@ with_jquery(function ($) {
 			}
 		}
 	};
+
+	var urls = {
+		store: "https://thetabx.net/backup/upload/ftdb/shoutbox/",
+		check: "https://thetabx.net/backup/check_json/ftdb/shoutbox/",
+		retrieve: "https://thetabx.net/backup/retrieve_json/ftdb/shoutbox/",
+		statistics: "https://thetabx.net/statistics/upload_json/ftdb/shoutbox/"
+	}
 
 	var loadFinished = function() {
 		$("#shout_text").trigger("click"); // Remove "Ecrire un message"
