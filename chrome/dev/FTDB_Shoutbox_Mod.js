@@ -31,7 +31,7 @@ with_jquery(function ($) {
 	"use strict";
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 72, scriptVersion = '0.6.5.424';
+	var debug = true, revision = 72, scriptVersion = '0.6.5.473';
 	var dt = new Date().getTime();
 	// Debug
 	var dbg = function (str) {
@@ -44,7 +44,7 @@ with_jquery(function ($) {
 		var debugData = [];
 		$.each(optionsDB.opt, function (k, v) {
 			if(v.type != "button") {
-				var debugString = "optionDB[" + k + "] : " + optionsDB.get(k);
+				var debugString = "optionsDB[" + k + "] : " + optionsDB.get(k);
 				debugData.push(debugString);
 				dbg(debugString);
 			}
@@ -547,7 +547,7 @@ with_jquery(function ($) {
 			var user = usersList[secureNick];
 			var thisClassId = $(this).attr("class").split(" ")[0];
 			if(!user) {
-				user = { 'secureNick': secureNick, 'userName': $(this).text(), 'hash': $(this).attr("href").substring(29), 'classId': thisClassId, 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'incomming': true, 'lastAct': 0, 'connected': true };
+				user = { 'secureNick': secureNick, 'userName': $(this).text(), 'hash': $(this).attr("href").substring(29), 'classId': thisClassId, 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'incomming': true, 'lastAct': 0 };
 			}
 			if(!user.connected) {
 				user.incomming = true;
@@ -567,6 +567,9 @@ with_jquery(function ($) {
 
 			if(user.incomming) {
 				$("#user_change").append(createChangeLink(user).delay(1).animate({"left": 10}, 1800));
+				user.incomming = false;
+				usersList[secureNick] = user;
+
 				if(user.friend) {
 					$("#u_" + secureNick).removeClass("user_friend_disconnected");
 					$("#u_" + secureNick).addClass("user_friend_connected");
@@ -593,11 +596,9 @@ with_jquery(function ($) {
 						$("#connected_list").prepend(userA);
 					}
 				}
-				user.incomming = false;
+				
 				nConnected++;
 			}
-
-			usersList[secureNick] = user;
 			lastSecureNick = (user.friend ? lastSecureNick : secureNick);
 		});
 
@@ -1007,13 +1008,15 @@ with_jquery(function ($) {
 				
 				var url = $("#usm_add_url").val();
 				if(url === "" || url === null || (url.indexOf("http://") == -1)) {
-					$("#usm_add_url").val("Url incorrecte");
+					$("#usm_add_url").val("");
+					alert("Url incorrecte");
 					return;
 				}
 
 				var nom = $("#usm_add_name").val();
-				if(nom === "" || nom === null || nom.indexOf(" ") != -1) {
-					$("#usm_add_name").val("Nom incorrect. Ne doit pas contenir d'espace");
+				if(nom === "" || nom === null || !nom.match("/^[a-z0-9:_\\\/-]+$/i")) {
+					$("#usm_add_name").val("");
+					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-");
 					return;
 				}
 
@@ -1097,13 +1100,15 @@ with_jquery(function ($) {
 				
 				var text = $("#macro_add_text").val();
 				if(text === "" || text === null) {
-					$("#macro_add_text").val("Texte incorrect");
+					$("#macro_add_text").val("");
+					alert("Texte incorrect");
 					return;
 				}
 
 				var nom = $("#macro_add_name").val();
-				if(nom === "" || nom === null || nom.indexOf(" ") != -1) {
-					$("#macro_add_name").val("Nom incorrect. Ne doit pas contenir d'espace");
+				if(nom === "" || nom === null || !nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
+					$("#macro_add_name").val("");
+					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-")
 					return;
 				}
 
@@ -1412,7 +1417,7 @@ with_jquery(function ($) {
 			return;
 		}
 
-		$("#website").append('<embed id="notification" type="application/x-shockwave-flash" flashvars="audioUrl=https://thetabx.net/download/audio/notifications/' + soundFile + '&autoPlay=true" src="http://thetabx.net/download/audio-player.swf" width="0" height="0" quality="best"></embed>');
+		$("#website").append('<embed id="notification" type="application/x-shockwave-flash" flashvars="audioUrl=' + urls.soundNotif + soundFile + '&autoPlay=true" src="' + urls.audioPlayer + '" width="0" height="0" quality="best"></embed>');
 		setTimeout(function () { $("#notification").remove(); }, 4000);
 	};
 									
@@ -1421,6 +1426,7 @@ with_jquery(function ($) {
 	// sendStatistics()
 	// Send anonymous statistics
 	////////////////////////////
+	var lastVersion = false;
 	var sendStatistics = function () {
 		$.ajax({
 			type: 'POST',
@@ -1439,6 +1445,7 @@ with_jquery(function ($) {
 				}
 				else if(data.needUpdate) {
 					dbg("[Statistics] New version available");
+					lastVersion = data.lastVersion;
 					addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">Une nouvelle version est disponible (' + data.lastVersion + ') !</a> La mise à jour devrait être automatique au prochain redémarage de Chrome.');
 				}
 				else {
@@ -1503,10 +1510,6 @@ with_jquery(function ($) {
 					}
 				}
 			});
-		}
-		else {
-			var urlB = urls.store + md5pseudo;
-			$.post(urlB, { 'options': JSON.stringify(optionsDB.getSendable()), 'friends': JSON.stringify(userDB.users), 'userdata': JSON.stringify(userData.data) });
 		}
 	};
 
@@ -1699,7 +1702,7 @@ with_jquery(function ($) {
 			}
 			$("#website").append('<div class="ftdb_panel" id="options_panel"><h3>Options FTDB Shoutbox Mod</h3><span id="obtn_shoutbox" class="obtn">Shoutbox</span><span id="obtn_input" class="obtn">Champ de saisie</span><span id="obtn_userlist" class="obtn">Liste d\'utilisateurs</span><span id="obtn_resize" class="obtn">Redimensionnement</span><span id="obtn_notif" class="obtn">Notifications</span><span id="obtn_other" class="obtn">Autres</span>' +
 				'<div id="options_box"><div id="option_shoutbox"></div><div id="option_input"></div><div id="option_userlist"></div><div id="option_resize"></div><div id="option_notif"></div><div id="option_other"></div></div>' +
-				'<div style="font-size:0.8em;text-align:right;">By <a href="/?section=ACCOUNT_INFOS&id=775418">Zergrael</a> | Version <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + scriptVersion + '</a>' + (lastVersion == "KO" || lastVersion == "OK" ? '' : ' | Nouvelle version disponnible : <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + lastVersion + '</a> !') + '</div>' +
+				'<div style="font-size:0.8em;text-align:right;">By <a href="/?section=ACCOUNT_INFOS&id=775418">Zergrael</a> | Version <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + scriptVersion + '</a>' + (lastVersion ? ' | Nouvelle version disponnible : <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + lastVersion + '</a> !' : '') + '</div>' +
 				'<center><input type="button" id="save_options_panel" value=" Enregistrer " />  <input type="button" id="close_options_panel" value=" Annuler " /></center></div>');
 			$.each(optionsDB.opt, function (option, data) {
 				if(data.type == "check") {
@@ -1772,6 +1775,7 @@ with_jquery(function ($) {
 					}
 				});
 
+				optionsDB.storeAll();
 				$("#options_panel").fadeOut(600, function () { window.location.reload(); });
 				return false;
 			});
@@ -2032,10 +2036,11 @@ with_jquery(function ($) {
 			});
 		},
 		storeAll: function() {
+			if(pauseStorage) { return; }
 			$.ajax({
 				type: 'POST',
 				url: urls.store + calcMD5(uMyself) + '/options/',
-				data: optionsDB.getSendable(),
+				data: {options: optionsDB.getSendable()},
 				dataType: 'json'
 			});
 		}
@@ -2053,6 +2058,7 @@ with_jquery(function ($) {
 		set: function(s, k, v) {
 			this.data[s][k] = v;
 			GM_setValue("data_" + s, JSON.stringify(this.data[s]));
+			this.storeAll();
 		},
 		get: function(s, k) {
 			return this.data[s][k];
@@ -2061,6 +2067,7 @@ with_jquery(function ($) {
 			if(this.data[s][k] !== undefined) {
 				delete this.data[s][k];
 				GM_setValue("data_" + s, JSON.stringify(this.data[s]));
+				this.storeAll();
 			}
 		},
 		getAll: function(s) {
@@ -2068,6 +2075,7 @@ with_jquery(function ($) {
 		},
 		setAllRaw: function(s, str) {
 			GM_setValue("data_" + s, str);
+			this.storeAll();
 		},
 		clearData: function(s) {
 			this.data[s] = {};
@@ -2083,10 +2091,11 @@ with_jquery(function ($) {
 			});
 		},
 		storeAll: function() {
+			if(pauseStorage) { return; }
 			$.ajax({
 				type: 'POST',
-				url: urls.store + calcMD5(uMyself) + '/userData/',
-				data: optionsDB.getSendable(),
+				url: urls.store + calcMD5(uMyself) + '/userdata/',
+				data: {userdata: userData.data},
 				dataType: 'json'
 			});
 		},
@@ -2120,6 +2129,7 @@ with_jquery(function ($) {
 			this.users[secureName].classId = classId;
 			this.users[secureName].hash = hash;
 			GM_setValue("users", JSON.stringify(this.users));
+			this.storeAll();
 		},
 		isIgnored: function (secureName) {
 			if(optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].ignore) {
@@ -2131,6 +2141,7 @@ with_jquery(function ($) {
 			if(this.users[secureName]) {
 				this.users[secureName].ignore = false;
 				GM_setValue("users", JSON.stringify(this.users));
+				this.storeAll();
 			}
 		},
 
@@ -2143,6 +2154,7 @@ with_jquery(function ($) {
 			this.users[secureName].classId = classId;
 			this.users[secureName].hash = hash;
 			GM_setValue("users", JSON.stringify(this.users));
+			this.storeAll();
 		},
 		isFriend: function (secureName) {
 			if(optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].friend) {
@@ -2154,6 +2166,7 @@ with_jquery(function ($) {
 			if(this.users[secureName]) {
 				this.users[secureName].friend = false;
 				GM_setValue("users", JSON.stringify(this.users));
+				this.storeAll();
 			}
 		},
 
@@ -2169,10 +2182,21 @@ with_jquery(function ($) {
 			}
 			this.users[secureName].classId = classId;
 			GM_setValue("users", JSON.stringify(this.users));
+			this.storeAll();
 		},
 
+		storeAll: function() {
+			if(pauseStorage) { return; }
+			$.ajax({
+				type: 'POST',
+				url: urls.store + calcMD5(uMyself) + '/friends/',
+				data: {friends: userDB.users},
+				dataType: 'json'
+			});
+		},
 		setFriendsRaw: function(str) {
 			GM_setValue("users", str);
+			this.storeAll();
 		},
 		clearUsers: function () {
 			this.users =  {};
@@ -2186,23 +2210,62 @@ with_jquery(function ($) {
 		}
 	};
 
+	// External urls
 	var urls = {
-		store: "https://thetabx.net/backup/upload/ftdb/shoutbox/",
-		check: "https://thetabx.net/backup/check_json/ftdb/shoutbox/",
-		retrieve: "https://thetabx.net/backup/retrieve_json/ftdb/shoutbox/",
-		statistics: "https://thetabx.net/statistics/upload_json/ftdb/shoutbox/"
+		soundNotif: location.protocol + "//thetabx.net/download/audio/notifications/",
+		audioPlayer: location.protocol + "//thetabx.net/download/audio-player.swf",
+		store: location.protocol + "//thetabx.net/backup/store_json/ftdb/shoutbox/",
+		check: location.protocol + "//thetabx.net/backup/check_json/ftdb/shoutbox/",
+		retrieve: location.protocol + "//thetabx.net/backup/retrieve_json/ftdb/shoutbox/",
+		statistics: location.protocol + "//thetabx.net/statistics/upload_json/ftdb/shoutbox/"
 	}
 
+	$(".tech").append(' | <a href="#" id="debug_shit">Debug</a>');
+	$("#debug_shit").click(function() {
+		//userDB.storeAll();
+		userData.storeAll();
+		//optionsDB.storeAll();
+	});
+
+	// Delay some functions in case of late UI redrawing
 	var loadFinished = function() {
 		$("#shout_text").trigger("click"); // Remove "Ecrire un message"
 		stickyScroll = true;
 		scrollNow();
 	};
 
+	// Database updates if needed
+	var pauseStorage = false;
 	if(userData.getDbRev() != revision) {
+		var oldRev = userData.getDbRev();
+		switch(oldRev) {
+			default: {
+				pauseStorage = true;
+				var changed = false;
+				$.each(userData.data, function (k, v) {
+					$.each(v, function (nom, d) {
+						if(!nom.match("/^[a-z0-9:_\\\/-]+$/i")) {
+							changed = true;
+							userData.unset(k, nom);
+							nom = nom.replace("/[^a-z0-9:_\\/-]/g", "_");
+							userData.set(k, nom, d);
+						}
+					})
+				});
+				if(changed) {
+					alert("Certains de vos smileys/macros contenaient des caractères incorrects.\nIls ont été remplacés par '_', n'oubliez pas de les vérifier/renommer.");
+				}
+
+				pauseStorage = false;
+				userDB.storeAll();
+				userData.storeAll();
+				optionsDB.storeAll();
+			}
+		}
 		userData.setDbRev();
 	}
 
+	// Start process
 	userDB.loadUsers();
 	userData.loadData();
 	dbg("Starting");
