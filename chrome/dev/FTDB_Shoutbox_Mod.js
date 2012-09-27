@@ -13,6 +13,9 @@
 // + Tab in idle order
 // ! Avoid text coloration
 // ! Friend class updater
+// + Full JSON external urls process
+// + Backup update on change only
+// + Smiley name sanitizer
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -31,7 +34,7 @@ with_jquery(function ($) {
 	"use strict";
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 72, scriptVersion = '0.6.5.473';
+	var debug = true, revision = 72, scriptVersion = '0.6.5.526';
 	var dt = new Date().getTime();
 	// Debug
 	var dbg = function (str) {
@@ -1014,7 +1017,7 @@ with_jquery(function ($) {
 				}
 
 				var nom = $("#usm_add_name").val();
-				if(nom === "" || nom === null || !nom.match("/^[a-z0-9:_\\\/-]+$/i")) {
+				if(nom === "" || nom === null || !nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
 					$("#usm_add_name").val("");
 					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-");
 					return;
@@ -1030,6 +1033,8 @@ with_jquery(function ($) {
 						userData.set("smiley", nom, url);
 
 						$("#usm_del").append($(' <img src="' + url + '" width="16" height="16" alt="' + nom + '" class="usersmiley_rem" /> ').click(function() {
+							$("#usm_add_name").val(nom);
+							$("#usm_add_url").val(url);
 							userData.unset("smiley", nom);
 							$('.bbcode_usersmiley[alt="' + nom + '"]').remove();
 							$('.usersmiley_rem[alt="' + nom + '"]').remove();
@@ -1051,6 +1056,8 @@ with_jquery(function ($) {
 
 			$(".usersmiley_rem").click(function() {
 				var name = $(this).attr("alt");
+				$("#usm_add_name").val(name);
+				$("#usm_add_url").val(userData.get("smiley", name));
 				userData.unset("smiley", name);
 				$('.bbcode_usersmiley[alt="' + name + '"]').remove();
 				$(this).remove();
@@ -1116,7 +1123,9 @@ with_jquery(function ($) {
 					userData.set("macro", nom, text);
 
 					$("#macro_del").append($('<a class="macro_rem" href="#">/' + nom + '</a><br />').click(function() {
-						userData.unset("smiley", nom);
+						$("#macro_add_name").val(name);
+						$("#macro_add_text").val(userData.get("macro", name));
+						userData.unset("macro", nom);
 						$(this).remove();
 					}));
 				}
@@ -1129,6 +1138,8 @@ with_jquery(function ($) {
 
 			$(".macro_rem").click(function() {
 				var name = $(this).text().substring(1);
+				$("#macro_add_name").val(name);
+				$("#macro_add_text").val(userData.get("macro", name));
 				userData.unset("macro", name);
 				$(this).remove();
 			});
@@ -1470,6 +1481,7 @@ with_jquery(function ($) {
 				success: function(data) {
 					dbg("[Backup] Can I backup from this ?");
 					if(data && data.status && data.status != "KO") {
+						dbg("[Backup] Looks like some backup is available");
 						var backupFrame = '<div id="backup_retrieve" class="ftdb_panel"><div class="backup_title">FTDB ShoutboxMod Backup</div><div class="backup_info">Il semblerait que vos options aient disparu.<br />Cependant, elles ont été sauvegardées avec l\'option de backup.<br />Quelle sauvegarde voulez-vous récupérer ?</br /><br /><div class="backup_list">';
 						var thisBackup = "";
 						$.each(data.backups, function(k, v) {
@@ -1482,7 +1494,7 @@ with_jquery(function ($) {
 								backupFrame += '<input type="radio" class="backRadio" name="backRadio" value="' + OSUA + '" /> ' + OSUA + '<br />';
 							}
 						});
-						dbg("[Backup] " + thisBackup);
+						
 						backupFrame += '</div>' + (thisBackup === "" ? '' : '<br />Attention : \'Ignorer\' écrasera définitevement la sauvegarde <b>' + thisBackup + '</b>');
 						$("#website").append(backupFrame + '</div><div id="backup_buttons"><input type="button" id="backup_button_retrieve" value=" Récupération " /> <input type="button" id="backup_button_ignore" value=" Ignorer " /></div></div>');
 					
@@ -1490,17 +1502,20 @@ with_jquery(function ($) {
 							var radioChecked = $(".backRadio:checked");
 							if(!radioChecked) { return; }
 							var OSUA = radioChecked.val().split(" - ");
+							dbg("[Backup] Trying to backup from " + radioChecked.val());
 							$.ajax({
 								type: 'GET',
 								url: urls.retrieve + md5pseudo + '/' + OSUA[0] + '/' + OSUA[1] + '/',
 								dataType: 'json',
 								success: function(data) {
-									$.each(data.options, function(k, v) {
-										optionsDB.set(k, v);
-									});
+									pauseStorage = true;
+									dbg("[Backup] Set raw array for options");
+									optionsDB.setAllRaw(data.options);
+									dbg("[Backup] Set raw array for friends");
 									userDB.setFriendsRaw(data.friends);
-									$.each(JSON.parse(data.userData), function(k, v) {
-										userData.setAllRaw(k, JSON.stringify(v));
+									$.each(data.userdata, function(s, d) {
+										dbg("[Backup] Set raw array for userdata[" + s + "]");
+										userData.setAllRaw(s, d);
 									});
 									window.location.reload();
 								}
@@ -1510,6 +1525,7 @@ with_jquery(function ($) {
 					}
 				}
 			});
+			userData.setLaunchedFirst();
 		}
 	};
 
@@ -2035,6 +2051,12 @@ with_jquery(function ($) {
 				}
 			});
 		},
+		setAllRaw: function(dArray) {
+			$.each(dArray, function (k, v) {
+				optionsDB.set(k, strToTyped(v.val));
+			});
+			this.storeAll();
+		},
 		storeAll: function() {
 			if(pauseStorage) { return; }
 			$.ajax({
@@ -2057,8 +2079,7 @@ with_jquery(function ($) {
 
 		set: function(s, k, v) {
 			this.data[s][k] = v;
-			GM_setValue("data_" + s, JSON.stringify(this.data[s]));
-			this.storeAll();
+			this.save(s);
 		},
 		get: function(s, k) {
 			return this.data[s][k];
@@ -2066,16 +2087,25 @@ with_jquery(function ($) {
 		unset: function(s, k) {
 			if(this.data[s][k] !== undefined) {
 				delete this.data[s][k];
-				GM_setValue("data_" + s, JSON.stringify(this.data[s]));
-				this.storeAll();
+				this.save(s);
 			}
+		},
+		rename: function(s, k, kR) {
+			var content = this.get(s, k);
+			userData.unset(s, k);
+			userData.set(s, k2, content);
+			this.save();
+		},
+		save: function(s) {
+			GM_setValue("data_" + s, JSON.stringify(this.data[s]));
+			this.storeAll();
 		},
 		getAll: function(s) {
 			return this.data[s];
 		},
-		setAllRaw: function(s, str) {
-			GM_setValue("data_" + s, str);
-			this.storeAll();
+		setAllRaw: function(s, dArray) {
+			this.data[s] = dArray;
+			this.save(s);
 		},
 		clearData: function(s) {
 			this.data[s] = {};
@@ -2100,11 +2130,10 @@ with_jquery(function ($) {
 			});
 		},
 		isFirstLaunch: function() {
-			if(GM_getValue("data_saved") !== true) {
-				GM_setValue("data_saved", true);
-				return true;
-			}
-			return false;
+			return GM_getValue("data_saved") !== true;
+		},
+		setLaunchedFirst: function() {
+			GM_setValue("data_saved", true);
 		},
 		getDbRev: function() {
 			return GM_getValue("data_db_rev");
@@ -2128,8 +2157,7 @@ with_jquery(function ($) {
 			this.users[secureName].userName = userName;
 			this.users[secureName].classId = classId;
 			this.users[secureName].hash = hash;
-			GM_setValue("users", JSON.stringify(this.users));
-			this.storeAll();
+			this.save();
 		},
 		isIgnored: function (secureName) {
 			if(optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].ignore) {
@@ -2140,8 +2168,7 @@ with_jquery(function ($) {
 		removeIgnore: function (secureName) {
 			if(this.users[secureName]) {
 				this.users[secureName].ignore = false;
-				GM_setValue("users", JSON.stringify(this.users));
-				this.storeAll();
+				this.save();
 			}
 		},
 
@@ -2153,8 +2180,7 @@ with_jquery(function ($) {
 			this.users[secureName].userName = userName;
 			this.users[secureName].classId = classId;
 			this.users[secureName].hash = hash;
-			GM_setValue("users", JSON.stringify(this.users));
-			this.storeAll();
+			this.save();
 		},
 		isFriend: function (secureName) {
 			if(optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].friend) {
@@ -2165,8 +2191,7 @@ with_jquery(function ($) {
 		removeFriend: function (secureName) {
 			if(this.users[secureName]) {
 				this.users[secureName].friend = false;
-				GM_setValue("users", JSON.stringify(this.users));
-				this.storeAll();
+				this.save();
 			}
 		},
 
@@ -2181,10 +2206,13 @@ with_jquery(function ($) {
 				return;
 			}
 			this.users[secureName].classId = classId;
+			this.save();
+		},
+
+		save: function() {
 			GM_setValue("users", JSON.stringify(this.users));
 			this.storeAll();
 		},
-
 		storeAll: function() {
 			if(pauseStorage) { return; }
 			$.ajax({
@@ -2194,9 +2222,9 @@ with_jquery(function ($) {
 				dataType: 'json'
 			});
 		},
-		setFriendsRaw: function(str) {
-			GM_setValue("users", str);
-			this.storeAll();
+		setFriendsRaw: function(dArray) {
+			this.users = dArray;
+			this.save();
 		},
 		clearUsers: function () {
 			this.users =  {};
@@ -2210,6 +2238,21 @@ with_jquery(function ($) {
 		}
 	};
 
+	var strToTyped = function(str) {
+		if(str == "true") {
+			return true;
+		}
+		if(str == "false") {
+			return false;
+		}
+		if(str.match("\\d+")) {
+			return Number(str);
+		}
+		else {
+			return str;
+		}
+	};
+
 	// External urls
 	var urls = {
 		soundNotif: location.protocol + "//thetabx.net/download/audio/notifications/",
@@ -2218,13 +2261,25 @@ with_jquery(function ($) {
 		check: location.protocol + "//thetabx.net/backup/check_json/ftdb/shoutbox/",
 		retrieve: location.protocol + "//thetabx.net/backup/retrieve_json/ftdb/shoutbox/",
 		statistics: location.protocol + "//thetabx.net/statistics/upload_json/ftdb/shoutbox/"
-	}
+	};
 
 	$(".tech").append(' | <a href="#" id="debug_shit">Debug</a>');
 	$("#debug_shit").click(function() {
 		//userDB.storeAll();
-		userData.storeAll();
+		//userData.storeAll();
 		//optionsDB.storeAll();
+
+		$.getJSON(urls.retrieve + "6c191ba3e3328206616112d000acd7ab/Windows%207/Chrome/", function(data) {
+			$.each(data, function(k, v) {
+				dbg("> " + k + " : " + v);
+				$.each(v, function(k2, v2) {
+					dbg(">> " + k2 + " : " + v2);
+					$.each(v2, function(k3, v3) {
+						dbg(">>> " + k3 + " : " + v3);
+					});
+				});
+			});
+		});
 	});
 
 	// Delay some functions in case of late UI redrawing
@@ -2236,7 +2291,7 @@ with_jquery(function ($) {
 
 	// Database updates if needed
 	var pauseStorage = false;
-	if(userData.getDbRev() != revision) {
+	if(userData.getDbRev() != revision && !userData.isFirstLaunch()) {
 		var oldRev = userData.getDbRev();
 		switch(oldRev) {
 			default: {
@@ -2246,9 +2301,7 @@ with_jquery(function ($) {
 					$.each(v, function (nom, d) {
 						if(!nom.match("/^[a-z0-9:_\\\/-]+$/i")) {
 							changed = true;
-							userData.unset(k, nom);
-							nom = nom.replace("/[^a-z0-9:_\\/-]/g", "_");
-							userData.set(k, nom, d);
+							userData.rename(k, nom, nom.replace("/[^a-z0-9:_\\/-]/g", "_"));
 						}
 					})
 				});
