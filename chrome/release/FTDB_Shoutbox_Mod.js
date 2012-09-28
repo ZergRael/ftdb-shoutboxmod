@@ -11,6 +11,12 @@
 // + Userlist tampon
 // ! Friend/ignore management
 // + Tab in idle order
+// ! Avoid text coloration
+// ! Friend class updater
+// + Full JSON external urls process
+// + Backup update on change only
+// + Smiley/Macro name sanitizer
+// ! Clickable images position
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -18,7 +24,6 @@
 // But whoever you are, thanks :)
 ///////////////////////////////////////////////
 function with_jquery(f) {
-	"use strict";
 	var script = document.createElement("script");
 	script.type = "text/javascript";
 	script.textContent = "(" + f.toString() + ")(jQuery)";
@@ -26,23 +31,28 @@ function with_jquery(f) {
 }
 
 with_jquery(function ($) {
-	"use strict";
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = false, revision = 72, scriptVersion = '0.6.5';
+	var debug = false, revision = 73, scriptVersion = '0.7.2';
 	var dt = new Date().getTime();
 	// Debug
+	var debugMessages = [];
 	var dbg = function (str) {
-		if(!debug) { return; }
-
 		var dd = new Date();
-		console.log("[" + dd.getHours() + ":" + dd.getMinutes() + ":" + dd.getSeconds() + ":" + dd.getMilliseconds() + "] " + str);
+		var debugMessage = "[" + dd.getHours() + ":" + dd.getMinutes() + ":" + dd.getSeconds() + ":" + dd.getMilliseconds() + "] " + str;
+		if(debug) { 
+			console.log(debugMessage);
+		}
+		debugMessages.push(debugMessage);
+		if(debugMessages.length > 20) {
+			debugMessages.shift();
+		}
 	};
 	window.debugShoutboxMod = function () {
 		var debugData = [];
 		$.each(optionsDB.opt, function (k, v) {
 			if(v.type != "button") {
-				var debugString = "optionDB[" + k + "] : " + optionsDB.get(k);
+				var debugString = "optionsDB[" + k + "] : " + optionsDB.get(k);
 				debugData.push(debugString);
 				dbg(debugString);
 			}
@@ -145,7 +155,7 @@ with_jquery(function ($) {
 						if(optionsDB.get("linkimages")) {
 							var imgParent = $(this).parent();
 							if(!imgParent.is("a")) {
-								imgParent.append($('<a href="' + $(this).attr("src") + '"></a>').append($(this)));
+								$(this).wrap('<a href="' + $(this).attr("src") + '"></a>');
 							}
 						}
 					}
@@ -169,7 +179,7 @@ with_jquery(function ($) {
 
 			// Colors process
 			if(optionsDB.get("hidecolor")) {
-				message.find("span").each(function () {
+				message.find('span[style*="color"]').each(function () {
 					$(this).replaceWith($(this).text());
 				});
 			}
@@ -189,11 +199,11 @@ with_jquery(function ($) {
 								showThisMessage = false;
 							}
 							else {
-								if(usersList[secureNick] && usersList[secureNick].secureNick) {
+								if(usersList[secureNick]) {
 									usersList[secureNick].lastAct = pureTimestamp + iMess;
 								}
 								else {
-									usersList[secureNick] = { 'lastAct': pureTimestamp + iMess };
+									usersList[secureNick] = { 'secureNick': secureNick, 'userName': aLink.text(), 'hash': aLink.attr("href").substring(29), 'classId': aLink.attr("class").split(" ")[0], 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'incomming': false, 'lastAct': pureTimestamp + iMess, 'connected': false };
 								}
 							}
 							if(optionsDB.get("shoutbanlist")) {
@@ -391,12 +401,12 @@ with_jquery(function ($) {
 		cleanOldMessages();
 	};
 
-	///////////////////////////
-	// setQuoteHighlighter()
-	// Enable quote highlighter
-	///////////////////////////
+	/////////////////////////////////////////
+	// getUMyself()
+	// Translate username in secured username
+	/////////////////////////////////////////
 	var uMyself;
-	var setQuoteHighlighter = function () {
+	var getUMyself = function () {
 		uMyself = $(".welcome").find("a").first().text().toLowerCase().replace(/\./g, "_");
 	};
 
@@ -463,9 +473,6 @@ with_jquery(function ($) {
 				$("#search_result").empty();
 				
 				$.each(usersArray, function (i, userData) {
-					if(usersList[userData.secureNick] && usersList[userData.secureNick].secureNick) {
-						userData.connected = true;
-					}
 					$("#search_result").append(createContextMenu(createUserLink(userData), userData.secureNick));
 					dbg("Adding " + i + userData.secureNick);
 				});
@@ -486,10 +493,12 @@ with_jquery(function ($) {
 			$.each(userDB.users, function (secureNick, data) {
 				var aUser = null;
 				if(friend && userDB.isFriend(secureNick)) {
-					if(usersList[secureNick] && usersList[secureNick].secureNick) {
-						data.connected = true;
+					if(usersList[secureNick]) {
+						aUser = createUserLink(usersList[secureNick]);
 					}
-					aUser = createUserLink(data);
+					else {
+						aUser = createUserLink(data);
+					}
 					createContextMenu(aUser, secureNick);
 					userArray.push(aUser);
 				}
@@ -545,40 +554,50 @@ with_jquery(function ($) {
 			var secureNick =  $(this).text().toLowerCase().replace(/\./g, "_");
 			var user = usersList[secureNick];
 			var thisClassId = $(this).attr("class").split(" ")[0];
-			if(!user || (user && !user.secureNick)) {
-				user = { 'secureNick': secureNick, 'userName': $(this).text(), 'hash': $(this).attr("href").substring(29), 'classId': thisClassId, 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'incomming': (user && user.secureNick ? false : true), 'lastAct': (user && user.lastAct ? user.lastAct : 0) };
+			if(!user) {
+				user = { 'secureNick': secureNick, 'userName': $(this).text(), 'hash': $(this).attr("href").substring(29), 'classId': thisClassId, 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'incomming': true, 'lastAct': 0 };
 			}
+			if(!user.connected) {
+				user.incomming = true;
+			}
+			user.going = false;
+			user.connected = true;
 			user.lastUpdate = 0;
 
-			if(user.classId != thisClassId) {
-				user.classId = thisClassId;
-				var thisUser = $("#u_" + secureNick);
-				thisUser.attr("class", thisUser.attr("class").replace($(this).attr("class").split(" ")[0], thisClassId));
+			// Class change
+			if(user.classId != thisClassId || (userDB.get(secureNick) && userDB.get(secureNick).classId != thisClassId)) {
+				var thisUserA = $("#u_" + secureNick);
+				if(thisUserA.length) {
+					thisUserA.attr("class", thisUserA.attr("class").replace(user.classId, thisClassId));
+					user.classId = thisClassId;
+				}
 				userDB.updateUserClass(secureNick, thisClassId);
-			}
-
-			var userA = createUserLink(user);
-			if(optionsDB.get("banlist")) {
-				createContextMenu(userA, secureNick);
-			}
-
-			if(optionsDB.get("highlightuserfromlist")) {
-				userA.hover(function () {
-					$(".shout_rowalt").removeClass("highlight_mouseover");
-					$(".u_" + secureNick).addClass("highlight_mouseover");
-				}, function () {
-					$(".u_" + secureNick).removeClass("highlight_mouseover");
-				});
 			}
 
 			if(user.incomming) {
 				$("#user_change").append(createChangeLink(user).delay(1).animate({"left": 10}, 1800));
 				user.incomming = false;
+				usersList[secureNick] = user;
+
 				if(user.friend) {
 					$("#u_" + secureNick).removeClass("user_friend_disconnected");
 					$("#u_" + secureNick).addClass("user_friend_connected");
 				}
 				else {
+					var userA = createUserLink(user);
+					if(optionsDB.get("banlist")) {
+						createContextMenu(userA, secureNick);
+					}
+
+					if(optionsDB.get("highlightuserfromlist")) {
+						userA.hover(function () {
+							$(".shout_rowalt").removeClass("highlight_mouseover");
+							$(".u_" + secureNick).addClass("highlight_mouseover");
+						}, function () {
+							$(".u_" + secureNick).removeClass("highlight_mouseover");
+						});
+					}
+
 					if(lastSecureNick !== "") {
 						userA.insertAfter("#u_" + lastSecureNick);
 					}
@@ -586,10 +605,9 @@ with_jquery(function ($) {
 						$("#connected_list").prepend(userA);
 					}
 				}
+				
 				nConnected++;
 			}
-
-			usersList[secureNick] = user;
 			lastSecureNick = (user.friend ? lastSecureNick : secureNick);
 		});
 
@@ -605,7 +623,7 @@ with_jquery(function ($) {
 
 		var hiddenPos = $("#user_list").width();
 		$.each(usersList, function (secureNick, userData) {
-			if(!userData.secureNick) { return; }
+			if(!userData.connected) { return; }
 			if(userData.lastUpdate === 0) {
 				userData.lastUpdate++;
 			}
@@ -619,7 +637,7 @@ with_jquery(function ($) {
 					$("#u_" + secureNick).remove();
 				}
 				$("#user_change").append(createChangeLink(userData).delay(800).animate({"left": hiddenPos}, 1800));
-				delete usersList[secureNick];
+				userData.connected = false;
 				nConnected--;
 			}
 		});
@@ -639,11 +657,9 @@ with_jquery(function ($) {
 	var filtering = "";
 	var createContextMenu = function (userA, secureNick) {
 		var user = usersList[secureNick];
-		if(!user || !user.secureNick) {
-			user = {};
-			user.userName = userA.text();
-			user.hash = userA.attr("href").substring(29);
-			user.classId = userA.attr("class").split(" ")[0];
+		if(!user) {
+			user = userDB.get(secureNick);
+			if(!user) { return; }
 		}
 		userA.click(function (e) {
 			if(e.which == 2) { return true; }
@@ -693,7 +709,7 @@ with_jquery(function ($) {
 					userAUL.removeClass("user_friend_connected");
 					var lastSecureNick = "";
 					$.each(usersList, function (k, v) {
-						if(!v.secureNick) { return; }
+						if(!v.connected) { return; }
 						if(v.secureNick == secureNick) { return false; }
 						lastSecureNick = (v.friend ? lastSecureNick : v.secureNick);
 					});
@@ -707,14 +723,14 @@ with_jquery(function ($) {
 				else {
 					userDB.setFriend(secureNick, user.userName, userA.attr("class").split(" ")[0], user.hash);
 					userAUL = "";
-					if(usersList[secureNick] && usersList[secureNick].secureNick) {
+					if(usersList[secureNick] && usersList[secureNick].connected) {
 						userAUL = $("#u_" + secureNick);
 						userAUL.addClass("user_friend_connected");
 					}
 					else {
-						user.secureNick = secureNick;
+						user.ignore = userDB.isIgnored(secureNick);
+						user.connected = false;
 						userAUL = createContextMenu(createUserLink(user), secureNick);
-						userAUL.addClass("user_friend_disconnected");
 					}
 					userAUL.addClass("user_friend");
 					$("#friend_list").append(userAUL);
@@ -955,7 +971,7 @@ with_jquery(function ($) {
 		}
 		else {
 			$.each(usersList, function (secureNick, userData) {
-				if(!userData.secureNick) { return; }
+				if(!userData.connected) { return; }
 				if(userData.userName.toLowerCase().indexOf(name) === 0) {
 					dbg("push " + secureNick);
 					usersTab.push(userData);
@@ -1001,13 +1017,15 @@ with_jquery(function ($) {
 				
 				var url = $("#usm_add_url").val();
 				if(url === "" || url === null || (url.indexOf("http://") == -1)) {
-					$("#usm_add_url").val("Url incorrecte");
+					$("#usm_add_url").val("");
+					alert("Url incorrecte");
 					return;
 				}
 
 				var nom = $("#usm_add_name").val();
-				if(nom === "" || nom === null || nom.indexOf(" ") != -1) {
-					$("#usm_add_name").val("Nom incorrect. Ne doit pas contenir d'espace");
+				if(nom === "" || nom === null || !nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
+					$("#usm_add_name").val("");
+					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-");
 					return;
 				}
 
@@ -1021,6 +1039,8 @@ with_jquery(function ($) {
 						userData.set("smiley", nom, url);
 
 						$("#usm_del").append($(' <img src="' + url + '" width="16" height="16" alt="' + nom + '" class="usersmiley_rem" /> ').click(function() {
+							$("#usm_add_name").val(nom);
+							$("#usm_add_url").val(url);
 							userData.unset("smiley", nom);
 							$('.bbcode_usersmiley[alt="' + nom + '"]').remove();
 							$('.usersmiley_rem[alt="' + nom + '"]').remove();
@@ -1042,6 +1062,8 @@ with_jquery(function ($) {
 
 			$(".usersmiley_rem").click(function() {
 				var name = $(this).attr("alt");
+				$("#usm_add_name").val(name);
+				$("#usm_add_url").val(userData.get("smiley", name));
 				userData.unset("smiley", name);
 				$('.bbcode_usersmiley[alt="' + name + '"]').remove();
 				$(this).remove();
@@ -1091,13 +1113,15 @@ with_jquery(function ($) {
 				
 				var text = $("#macro_add_text").val();
 				if(text === "" || text === null) {
-					$("#macro_add_text").val("Texte incorrect");
+					$("#macro_add_text").val("");
+					alert("Texte incorrect");
 					return;
 				}
 
 				var nom = $("#macro_add_name").val();
-				if(nom === "" || nom === null || nom.indexOf(" ") != -1) {
-					$("#macro_add_name").val("Nom incorrect. Ne doit pas contenir d'espace");
+				if(nom === "" || nom === null || !nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
+					$("#macro_add_name").val("");
+					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-");
 					return;
 				}
 
@@ -1105,7 +1129,9 @@ with_jquery(function ($) {
 					userData.set("macro", nom, text);
 
 					$("#macro_del").append($('<a class="macro_rem" href="#">/' + nom + '</a><br />').click(function() {
-						userData.unset("smiley", nom);
+						$("#macro_add_name").val(name);
+						$("#macro_add_text").val(userData.get("macro", name));
+						userData.unset("macro", nom);
 						$(this).remove();
 					}));
 				}
@@ -1118,6 +1144,8 @@ with_jquery(function ($) {
 
 			$(".macro_rem").click(function() {
 				var name = $(this).text().substring(1);
+				$("#macro_add_name").val(name);
+				$("#macro_add_text").val(userData.get("macro", name));
 				userData.unset("macro", name);
 				$(this).remove();
 			});
@@ -1406,7 +1434,7 @@ with_jquery(function ($) {
 			return;
 		}
 
-		$("#website").append('<embed id="notification" type="application/x-shockwave-flash" flashvars="audioUrl=https://thetabx.net/download/audio/notifications/' + soundFile + '&autoPlay=true" src="http://thetabx.net/download/audio-player.swf" width="0" height="0" quality="best"></embed>');
+		$("#website").append('<embed id="notification" type="application/x-shockwave-flash" flashvars="audioUrl=' + urls.soundNotif + soundFile + '&autoPlay=true" src="' + urls.audioPlayer + '" width="0" height="0" quality="best"></embed>');
 		setTimeout(function () { $("#notification").remove(); }, 4000);
 	};
 									
@@ -1415,34 +1443,31 @@ with_jquery(function ($) {
 	// sendStatistics()
 	// Send anonymous statistics
 	////////////////////////////
-	var lastVersion = "error";
+	var lastVersion = false;
 	var sendStatistics = function () {
-		//if(debug) { return; }
-
-		var url = 'http://thetabx.net/statistics/upload/ftdb/shoutbox/' + scriptVersion + '/';
-		var optionsData = "";
-		$.each(optionsDB.opt, function (k, v) {
-			if(v.type != "button") {
-				optionsData += k + ":" + optionsDB.get(k) + "|";
-			}
-		});
-		$.get(url + encodeURIComponent(optionsData), function (data) {
-			lastVersion = data;
-			if(lastVersion == "OK") {
-				dbg("[Statistics] Up to date");
-			}
-			else if(lastVersion.match(new RegExp("\\d+\\.\\d+\\.\\d+"))) {
-				dbg("[Statistics] New version available");
-				addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">Une nouvelle version est disponible (' + lastVersion + ') !</a> La mise à jour devrait être automatique au prochain redémarage de Chrome.');
-			}
-			else if(lastVersion == "error") {
-				dbg("[Statistics] Can't get version from server");
-			}
-			else if(lastVersion == "debug") {
-				scriptVersion += " (debug)";
-			}
-			else {
-				dbg("[Statistics] Does not understand server response");
+		$.ajax({
+			type: 'POST',
+			url: urls.statistics + scriptVersion + '/',
+			data: {'options': optionsDB.getSendable()},
+			dataType: 'json',
+			success: function(data) {
+				if(data.error) {
+					dbg("[Statistics] Error returned");
+					if(data.bad_formating) {
+						dbg("[Statistics] Bad formating");
+					}
+				}
+				else if(data.debug) {
+					scriptVersion += " (debug)";
+				}
+				else if(data.needUpdate) {
+					dbg("[Statistics] New version available");
+					lastVersion = data.lastVersion;
+					addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">Une nouvelle version est disponible (' + data.lastVersion + ') !</a> La mise à jour devrait être automatique au prochain redémarage de Chrome.');
+				}
+				else {
+					dbg("[Statistics] Can't get version from server");
+				}
 			}
 		});
 	};
@@ -1454,68 +1479,58 @@ with_jquery(function ($) {
 	var backupOptions = function() {
 		var md5pseudo = calcMD5(uMyself);
 		if(userData.isFirstLaunch()) {
-			var urlC = 'http://thetabx.net/backup/check/ftdb/shoutbox/' + md5pseudo + '/2/';
-			$.get(urlC, function(data) {
-				if(data && data !== "" && data != "KO") {
-					var backupFrame = '<div id="backup_retrieve" class="ftdb_panel"><div class="backup_title">FTDB ShoutboxMod Backup</div><div class="backup_info">Il semblerait que vos options aient disparu.<br />Cependant, elles ont été sauvegardées avec l\'option de backup.<br />Quelle sauvegarde voulez-vous récupérer ?</br /><br /><div class="backup_list">';
-					var backupSplit = data.split("|");
-					var thisBackup = "";
-					$.each(backupSplit, function(k, v) {
-						if(v === "") { return; }
-						if(v.indexOf("!") != -1) {
-							v = v.replace("!", "");
-							thisBackup = v;
-							backupFrame += '<input type="radio" class="backRadio" name="backRadio" checked="checked" value="' + v + '" /> ' + v + '<br />';
-						}
-						else {
-							backupFrame += '<input type="radio" class="backRadio" name="backRadio" value="' + v + '" /> ' + v + '<br />';
-						}
-					});
-					dbg("[Backup] " + thisBackup);
-					backupFrame += '</div>' + (thisBackup === "" ? '' : '<br />Attention : \'Ignorer\' écrasera définitevement la sauvegarde <b>' + thisBackup + '</b>');
-					$("#website").append(backupFrame + '</div><div id="backup_buttons"><input type="button" id="backup_button_retrieve" value=" Récupération " /> <input type="button" id="backup_button_ignore" value=" Ignorer " /></div></div>');
-				
-					$("#backup_button_retrieve").click(function() {
-						var radioChecked = $(".backRadio:checked");
-						if(!radioChecked) { return; }
-						var OSUA = radioChecked.val().split(" - ");
-						var urlBk = 'http://thetabx.net/backup/retrieve/ftdb/shoutbox/' + md5pseudo + '/' + OSUA[0] + '/' + OSUA[1] + '/';
-						$.get(urlBk, function(data) {
-							var splittedData = data.split("\n");
-							var splittedOptions = splittedData[0].split("|");
-							$.each(splittedOptions, function(k, v) {
-								var splitOpt = v.split(":");
-								var value = splitOpt[1];
-								if(value == "true") {
-									value = true;
-								}
-								else if(value == "false") {
-									value = false;
-								}
-								optionsDB.set(splitOpt[0], value);
-							});
-							userDB.setFriendsRaw(splittedData[1]);
-							$.each(JSON.parse(splittedData[2]), function(k, v) {
-								userData.setAllRaw(k, JSON.stringify(v));
-							});
-							window.location.reload();
+			$.ajax({
+				type: 'GET',
+				url: urls.check + md5pseudo + '/',
+				dataType: 'json',
+				success: function(data) {
+					dbg("[Backup] Can I backup from this ?");
+					if(data && data.status && data.status != "KO") {
+						dbg("[Backup] Looks like some backup is available");
+						var backupFrame = '<div id="backup_retrieve" class="ftdb_panel"><div class="backup_title">FTDB ShoutboxMod Backup</div><div class="backup_info">Il semblerait que vos options aient disparu.<br />Cependant, elles ont été sauvegardées avec l\'option de backup.<br />Quelle sauvegarde voulez-vous récupérer ?</br /><br /><div class="backup_list">';
+						var thisBackup = "";
+						$.each(data.backups, function(k, v) {
+							var OSUA = v.os + " - " + v.ua;
+							if(v.prefered) {
+								thisBackup = OSUA;
+								backupFrame += '<input type="radio" class="backRadio" name="backRadio" checked="checked" value="' + OSUA + '" /> ' + OSUA + '<br />';
+							}
+							else {
+								backupFrame += '<input type="radio" class="backRadio" name="backRadio" value="' + OSUA + '" /> ' + OSUA + '<br />';
+							}
 						});
-					});
-					$("#backup_button_ignore").click(function() { $("#backup_retrieve").remove(); });
+						
+						backupFrame += '</div>' + (thisBackup === "" ? '' : '<br />Attention : \'Ignorer\' écrasera définitevement la sauvegarde <b>' + thisBackup + '</b>');
+						$("#website").append(backupFrame + '</div><div id="backup_buttons"><input type="button" id="backup_button_retrieve" value=" Récupération " /> <input type="button" id="backup_button_ignore" value=" Ignorer " /></div></div>');
+					
+						$("#backup_button_retrieve").click(function() {
+							var radioChecked = $(".backRadio:checked");
+							if(!radioChecked) { return; }
+							var OSUA = radioChecked.val().split(" - ");
+							dbg("[Backup] Trying to backup from " + radioChecked.val());
+							$.ajax({
+								type: 'GET',
+								url: urls.retrieve + md5pseudo + '/' + OSUA[0] + '/' + OSUA[1] + '/',
+								dataType: 'json',
+								success: function(data) {
+									pauseStorage = true;
+									dbg("[Backup] Set raw array for options");
+									optionsDB.setAllRaw(data.options);
+									dbg("[Backup] Set raw array for friends");
+									userDB.setFriendsRaw(data.friends);
+									$.each(data.userdata, function(s, d) {
+										dbg("[Backup] Set raw array for userdata[" + s + "]");
+										userData.setAllRaw(s, d);
+									});
+									window.location.reload();
+								}
+							});
+						});
+						$("#backup_button_ignore").click(function() { $("#backup_retrieve").remove(); });
+					}
 				}
 			});
-		}
-		else {
-			var urlB = 'http://thetabx.net/backup/upload/ftdb/shoutbox/' + md5pseudo + '/2/';
-
-			var optionsData = "";
-			$.each(optionsDB.opt, function (k, v) {
-				if(v.type != "button") {
-					optionsData += k + ":" + optionsDB.get(k) + "|";
-				}
-			});
-
-			$.post(urlB, { 'options': optionsData.substring(0, optionsData.length - 1), 'friends': JSON.stringify(userDB.users), 'userdata': JSON.stringify(userData.data) });
+			userData.setLaunchedFirst();
 		}
 	};
 
@@ -1708,7 +1723,7 @@ with_jquery(function ($) {
 			}
 			$("#website").append('<div class="ftdb_panel" id="options_panel"><h3>Options FTDB Shoutbox Mod</h3><span id="obtn_shoutbox" class="obtn">Shoutbox</span><span id="obtn_input" class="obtn">Champ de saisie</span><span id="obtn_userlist" class="obtn">Liste d\'utilisateurs</span><span id="obtn_resize" class="obtn">Redimensionnement</span><span id="obtn_notif" class="obtn">Notifications</span><span id="obtn_other" class="obtn">Autres</span>' +
 				'<div id="options_box"><div id="option_shoutbox"></div><div id="option_input"></div><div id="option_userlist"></div><div id="option_resize"></div><div id="option_notif"></div><div id="option_other"></div></div>' +
-				'<div style="font-size:0.8em;text-align:right;">By <a href="/?section=ACCOUNT_INFOS&id=775418">Zergrael</a> | Version <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + scriptVersion + '</a>' + (lastVersion == "KO" || lastVersion == "OK" ? '' : ' | Nouvelle version disponnible : <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + lastVersion + '</a> !') + '</div>' +
+				'<div style="font-size:0.8em;text-align:right;">By <a href="/?section=ACCOUNT_INFOS&id=775418">Zergrael</a> | Version <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + scriptVersion + '</a>' + (lastVersion ? ' | Nouvelle version disponnible : <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">' + lastVersion + '</a> !' : '') + '</div>' +
 				'<center><input type="button" id="save_options_panel" value=" Enregistrer " />  <input type="button" id="close_options_panel" value=" Annuler " /></center></div>');
 			$.each(optionsDB.opt, function (option, data) {
 				if(data.type == "check") {
@@ -1781,6 +1796,7 @@ with_jquery(function ($) {
 					}
 				});
 
+				optionsDB.storeAll();
 				$("#options_panel").fadeOut(600, function () { window.location.reload(); });
 				return false;
 			});
@@ -1969,11 +1985,11 @@ with_jquery(function ($) {
 
 			// Input
 			tabnames: {defaultVal: true, type: "check", requires: ["#check_tabnames", "#check_userlist"], frame: "#option_input", text: 'Autocomplétion des pseudos', reqLast: false},
-			tabirc: {defaultVal: false, type: "check", requires: ["#check_tabirc", "#check_tabnames", "#check_userlist"], frame: "#option_input", text: 'Méthode IRC (Pas de suggestion)', reqLast: true},
+			tabirc: {defaultVal: true, type: "check", requires: ["#check_tabirc", "#check_tabnames", "#check_userlist"], frame: "#option_input", text: 'Méthode IRC (Pas de suggestion)', reqLast: true},
 			addspaceafterautoc: {defaultVal: true, type: "check", requires: ["#check_addspaceafterautoc", "#check_tabnames", "#check_userlist"], frame: "#option_input", text: 'Ajouter un espace après l\'autocomplétion', reqLast: true},
 			addcolonafterautoc: {defaultVal: false, type: "check", requires: ["#check_addcolonafterautoc", "#check_addspaceafterautoc", "#check_tabnames", "#check_userlist"], frame: "#option_input", text: 'Ajouter ": " si l\'autocomplétion est en début de phrase', reqLast: true},
 			changeautockey: {defaultVal: false, type: "check", requires: ["#check_changeautockey", "#check_tabnames", "#check_userlist"], frame: "#option_input", text: 'Autocompléter avec → au lieu de Tab', reqLast: true},
-			usersmiley: {defaultVal: false, type: "check", requires: ["#check_usersmiley"], frame: "#option_input", text: 'Smileys personnalisés', reqLast: false},
+			usersmiley: {defaultVal: true, type: "check", requires: ["#check_usersmiley"], frame: "#option_input", text: 'Smileys personnalisés', reqLast: false},
 			chatcommands: {defaultVal: false, type: "check", requires: ["#check_chatcommands"], frame: "#option_input", text: 'Macros textuelles', reqLast: false},
 
 			// Userlist
@@ -2024,11 +2040,35 @@ with_jquery(function ($) {
 			}
 			return this.opt[k].val;
 		},
+		getSendable: function() {
+			var optionsData = {};
+			$.each(optionsDB.opt, function (k, v) {
+				if(v.type != "button") {
+					optionsData[k] = { val: optionsDB.get(k) };
+				}
+			});
+			return optionsData;
+		},
 		clearAll: function() {
 			$.each(optionsDB.opt, function (k, v) {
 				if(v.type != "button") {
 					GM_setValue(k, v.defaultVal);
 				}
+			});
+		},
+		setAllRaw: function(dArray) {
+			$.each(dArray, function (k, v) {
+				optionsDB.set(k, strToTyped(v.val));
+			});
+			this.storeAll();
+		},
+		storeAll: function() {
+			if(pauseStorage) { return; }
+			$.ajax({
+				type: 'POST',
+				url: urls.store + calcMD5(uMyself) + '/options/',
+				data: {options: optionsDB.getSendable()},
+				dataType: 'json'
 			});
 		}
 	};
@@ -2044,7 +2084,7 @@ with_jquery(function ($) {
 
 		set: function(s, k, v) {
 			this.data[s][k] = v;
-			GM_setValue("data_" + s, JSON.stringify(this.data[s]));
+			this.save(s);
 		},
 		get: function(s, k) {
 			return this.data[s][k];
@@ -2052,14 +2092,25 @@ with_jquery(function ($) {
 		unset: function(s, k) {
 			if(this.data[s][k] !== undefined) {
 				delete this.data[s][k];
-				GM_setValue("data_" + s, JSON.stringify(this.data[s]));
+				this.save(s);
 			}
+		},
+		rename: function(s, k, kR) {
+			var content = this.get(s, k);
+			userData.unset(s, k);
+			userData.set(s, kR, content);
+			this.save();
+		},
+		save: function(s) {
+			GM_setValue("data_" + s, JSON.stringify(this.data[s]));
+			this.storeAll();
 		},
 		getAll: function(s) {
 			return this.data[s];
 		},
-		setAllRaw: function(s, str) {
-			GM_setValue("data_" + s, str);
+		setAllRaw: function(s, dArray) {
+			this.data[s] = dArray;
+			this.save(s);
 		},
 		clearData: function(s) {
 			this.data[s] = {};
@@ -2074,12 +2125,20 @@ with_jquery(function ($) {
 				}
 			});
 		},
+		storeAll: function() {
+			if(pauseStorage) { return; }
+			$.ajax({
+				type: 'POST',
+				url: urls.store + calcMD5(uMyself) + '/userdata/',
+				data: {userdata: userData.data},
+				dataType: 'json'
+			});
+		},
 		isFirstLaunch: function() {
-			if(GM_getValue("data_saved") !== true) {
-				GM_setValue("data_saved", true);
-				return true;
-			}
-			return false;
+			return GM_getValue("data_saved") !== true;
+		},
+		setLaunchedFirst: function() {
+			GM_setValue("data_saved", true);
 		},
 		getDbRev: function() {
 			return GM_getValue("data_db_rev");
@@ -2100,21 +2159,24 @@ with_jquery(function ($) {
 				this.users[secureName] = {};
 			}
 			this.users[secureName].ignore = true;
+			this.users[secureName].secureNick = secureName;
 			this.users[secureName].userName = userName;
 			this.users[secureName].classId = classId;
 			this.users[secureName].hash = hash;
-			GM_setValue("users", JSON.stringify(this.users));
+			this.save();
 		},
 		isIgnored: function (secureName) {
-			if(optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].ignore) {
-				return true;
-			}
-			return false;
+			return (optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].ignore === true);
 		},
 		removeIgnore: function (secureName) {
 			if(this.users[secureName]) {
-				this.users[secureName].ignore = false;
-				GM_setValue("users", JSON.stringify(this.users));
+				if(!this.users[secureName].friend) {
+					delete this.users[secureName];
+				}
+				else {
+					this.users[secureName].ignore = false;
+				}
+				this.save();
 			}
 		},
 
@@ -2123,34 +2185,61 @@ with_jquery(function ($) {
 				this.users[secureName] = {};
 			}
 			this.users[secureName].friend = true;
+			this.users[secureName].secureNick = secureName;
 			this.users[secureName].userName = userName;
 			this.users[secureName].classId = classId;
 			this.users[secureName].hash = hash;
-			GM_setValue("users", JSON.stringify(this.users));
+			this.save();
 		},
 		isFriend: function (secureName) {
-			if(optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].friend) {
-				return true;
-			}
-			return false;
+			return (optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].friend === true);
 		},
 		removeFriend: function (secureName) {
 			if(this.users[secureName]) {
-				this.users[secureName].friend = false;
-				GM_setValue("users", JSON.stringify(this.users));
+				if(!this.users[secureName].ignore) {
+					delete this.users[secureName];
+				}
+				else {
+					this.users[secureName].friend = false;
+				}
+				this.save();
 			}
 		},
 
+		get: function(secureName) {
+			if(this.users[secureName]) {
+				return this.users[secureName];
+			}
+			return false;
+		},
 		updateUserClass: function (secureName, classId) {
 			if(!this.users[secureName]) {
 				return;
 			}
 			this.users[secureName].classId = classId;
-			GM_setValue("users", JSON.stringify(this.users));
+			this.save();
 		},
 
-		setFriendsRaw: function(str) {
-			GM_setValue("users", str);
+		save: function() {
+			GM_setValue("users", JSON.stringify(this.users));
+			this.storeAll();
+		},
+		storeAll: function() {
+			if(pauseStorage) { return; }
+			$.ajax({
+				type: 'POST',
+				url: urls.store + calcMD5(uMyself) + '/friends/',
+				data: {friends: userDB.users},
+				dataType: 'json'
+			});
+		},
+		setFriendsRaw: function(dArray) {
+			$.each(dArray, function (secureNick, data) {
+				data.ignore = (data.ignore ? strToTyped(data.ignore) : false);
+				data.friend = (data.friend ? strToTyped(data.friend) : false);
+				userDB.users[secureNick] = data;
+			})
+			this.save();
 		},
 		clearUsers: function () {
 			this.users =  {};
@@ -2164,72 +2253,189 @@ with_jquery(function ($) {
 		}
 	};
 
+	// Builds typed variable with str variable
+	var strToTyped = function(str) {
+		if(str == "true") {
+			return true;
+		}
+		if(str == "false") {
+			return false;
+		}
+		if(str.match("\\d+")) {
+			return Number(str);
+		}
+		else {
+			return str;
+		}
+	};
+
+	// External urls
+	var urls = {
+		soundNotif: location.protocol + "//thetabx.net/download/audio/notifications/",
+		audioPlayer: location.protocol + "//thetabx.net/download/audio-player.swf",
+		store: location.protocol + "//thetabx.net/backup/store_json/ftdb/shoutbox/",
+		check: location.protocol + "//thetabx.net/backup/check_json/ftdb/shoutbox/",
+		retrieve: location.protocol + "//thetabx.net/backup/retrieve_json/ftdb/shoutbox/",
+		statistics: location.protocol + "//thetabx.net/statistics/upload_json/ftdb/shoutbox/",
+		debug: location.protocol + "//thetabx.net/debug/upload_json/ftdb/shoutbox/"
+	};
+
+	// Delay some functions in case of late UI redrawing
 	var loadFinished = function() {
 		$("#shout_text").trigger("click"); // Remove "Ecrire un message"
 		stickyScroll = true;
 		scrollNow();
 	};
 
-	if(userData.getDbRev() != revision) {
-		userData.setDbRev();
-	}
+	// Start process
+	try {
+		dbg("[Init] Loading data");
+		userDB.loadUsers();
+		userData.loadData();
 
-	userDB.loadUsers();
-	userData.loadData();
-	dbg("Starting");
-	initCSS();
-	if(optionsDB.get("highlightquote")) {
-		setQuoteHighlighter();
+		dbg("[Init] F: getUMyself");
+		getUMyself();
+
+		// Database updates if needed
+		dbg("[Init] Check for database updates");
+		var pauseStorage = false;
+		if(userData.getDbRev() != revision && !userData.isFirstLaunch()) {
+			var oldRev = userData.getDbRev();
+			switch(oldRev) {
+				case 72: {}
+				default: {
+					dbg("[Init] Upgrading DB from " + oldRev);
+					pauseStorage = true;
+
+					var smileyChanged = [];
+					$.each(userData.data, function (k, v) {
+						$.each(v, function (nom, d) {
+							if(!nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
+								var nomRenamed = nom.replace(/[^a-z0-9:_\\\/-]/g, "_")
+								userData.rename(k, nom, nomRenamed);
+								smileyChanged.push({'nom': nom, 'nomRenamed': nomRenamed});
+							}
+						});
+					});
+					if(smileyChanged.length) {
+						var alertText = "Certains de vos smileys/macros contenaient des caractères incorrects.\nIls ont été remplacés par '_' :\n\n";
+						$.each(smileyChanged, function(k, v) {
+							alertText += v.nom + " => " + v.nomRenamed;
+						});
+						alert(alertText);
+					}
+
+					$.each(userDB.users, function (secureNick, user) {
+						if(user.url) {
+							var hash = user.url.substring(29);
+							if(user.hash) {
+								delete user.url;
+								userDB.users[secureNick] = user;
+							}
+							else if(hash.length == 12) {
+								user.hash = hash;
+								delete user.url;
+								userDB.users[secureNick] = user;
+							}
+						}
+						if(!user.ignore && !user.friend) {
+							delete userDB.users[secureNick];
+						}
+					});
+					
+					pauseStorage = false;
+					userDB.save();
+					userData.save();
+					optionsDB.storeAll();
+				}
+			}
+			userData.setDbRev();
+		}
+
+		dbg("[Init] Starting");
+		initCSS();
+		if(optionsDB.get("statistics")) {
+			dbg("[Init] F: statistics");
+			sendStatistics();
+		}
+		if(optionsDB.get("optionsbak")) {
+			dbg("[Init] F: optionsbak");
+			backupOptions();
+		}
+		if(optionsDB.get("usersmiley")) {
+			dbg("[Init] F: usersmiley");
+			addUSmileyBar();
+		}
+		if(optionsDB.get("chatcommands")) {
+			dbg("[Init] F: chatcommands");
+			addMacroBar();
+		}
+		if(optionsDB.get("autoresize")){
+			dbg("[Init] F: autoresize");
+			setResizer();
+		}
+		if(optionsDB.get("shoutbox")) {
+			dbg("[Init] F: shoutbox");
+			prepareShoutbox();
+		}
+		if(optionsDB.get("userlist")) {
+			dbg("[Init] F: userlist");
+			prepareUserList();
+		}
+		else {
+			dbg("[Init] A: userlist");
+			$("#mod_shoutbox").prepend($(".frame_list"));
+		}
+		dbg("[Init] F: resizeShoutbox");
+		resizeShoutbox();
+		if(optionsDB.get("stickyscroll")) {
+			dbg("[Init] F: stickyscroll");
+			$("#SHOUT_MESSAGE").bind("scroll", shoutBox_OnScroll);
+		}
+		if(optionsDB.get("tabnames")) {
+			dbg("[Init] F: tabnames");
+			$('#shout_text').bind("keyup", shoutBoxText_OnKeyUp);
+		}
+		if(optionsDB.get("usersmiley") || optionsDB.get("tabnames")) {
+			dbg("[Init] F: usersmiley || tabnames");
+			$('#shout_text').bind("keydown", shoutBoxText_OnKeyDown);
+		}
+		if(optionsDB.get("changeautockey")) {
+			autocompleteKey = 39;
+		}
+		if(optionsDB.get("javairc")) {
+			dbg("[Init] F: javairc");
+			showIRCFrame();
+		}
+		if(optionsDB.get("hidegrades")) {
+			dbg("[Init] F: hidegrades");
+			hideGrades();
+		}
+		if(optionsDB.get("blinkmp")) {
+			dbg("[Init] F: blinkmp");
+			blinkIncommingMP();
+		}
+		dbg("[Init] Ending");
+		setWindowFocusTracker();
+		optionsPanelCreator();
+		scrollNow();
+		setTimeout(loadFinished, 200);
+		dbg("[Init] Loading took " + (new Date().getTime() - dt) + "ms");
 	}
-	if(optionsDB.get("statistics")) {
-		sendStatistics();
+	catch(err) {
+		dbg("[Error] Error found, sending repport");
+		var debugData = {debug_messages: debugMessages};
+		var vDebug = ""; 
+		for (var prop in err) {  
+			vDebug += "property: "+ prop+ " value: ["+ err[prop]+ "]\n"; 
+		}
+		vDebug += "toString(): " + " value: [" + err.toString() + "]"; 
+		debugData.error = vDebug; 
+		$.ajax({
+			type: 'POST',
+			url: urls.debug + calcMD5(uMyself) + '/',
+			data: debugData,
+			dataType: 'json'
+		});
 	}
-	if(optionsDB.get("optionsbak")) {
-		backupOptions();
-	}
-	if(optionsDB.get("usersmiley")) {
-		addUSmileyBar();
-	}
-	if(optionsDB.get("chatcommands")) {
-		addMacroBar();
-	}
-	if(optionsDB.get("autoresize")){
-		setResizer();
-	}
-	if(optionsDB.get("shoutbox")) {
-		prepareShoutbox();
-	}
-	if(optionsDB.get("userlist")) {
-		prepareUserList();
-	}
-	else {
-		$("#mod_shoutbox").prepend($(".frame_list"));
-	}
-	resizeShoutbox();
-	if(optionsDB.get("stickyscroll")) {
-		$("#SHOUT_MESSAGE").bind("scroll", shoutBox_OnScroll);
-	}
-	if(optionsDB.get("tabnames")) {
-		$('#shout_text').bind("keyup", shoutBoxText_OnKeyUp);
-	}
-	if(optionsDB.get("usersmiley") || optionsDB.get("tabnames")) {
-		$('#shout_text').bind("keydown", shoutBoxText_OnKeyDown);
-	}
-	if(optionsDB.get("changeautockey")) {
-		autocompleteKey = 39;
-	}
-	if(optionsDB.get("javairc")) {
-		showIRCFrame();
-	}
-	if(optionsDB.get("hidegrades")) {
-		hideGrades();
-	}
-	if(optionsDB.get("blinkmp")) {
-		blinkIncommingMP();
-	}
-	setWindowFocusTracker();
-	optionsPanelCreator();
-	scrollNow();
-	setTimeout(loadFinished, 200);
-	dbg("Loading took " + (new Date().getTime() - dt) + "ms");
 });

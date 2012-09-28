@@ -15,7 +15,8 @@
 // ! Friend class updater
 // + Full JSON external urls process
 // + Backup update on change only
-// + Smiley name sanitizer
+// + Smiley/Macro name sanitizer
+// ! Clickable images position
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -23,7 +24,6 @@
 // But whoever you are, thanks :)
 ///////////////////////////////////////////////
 function with_jquery(f) {
-	"use strict";
 	var script = document.createElement("script");
 	script.type = "text/javascript";
 	script.textContent = "(" + f.toString() + ")(jQuery)";
@@ -31,17 +31,22 @@ function with_jquery(f) {
 }
 
 with_jquery(function ($) {
-	"use strict";
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 72, scriptVersion = '0.6.5.526';
+	var debug = true, revision = 73, scriptVersion = '0.7.2.8';
 	var dt = new Date().getTime();
 	// Debug
+	var debugMessages = [];
 	var dbg = function (str) {
-		if(!debug) { return; }
-
 		var dd = new Date();
-		console.log("[" + dd.getHours() + ":" + dd.getMinutes() + ":" + dd.getSeconds() + ":" + dd.getMilliseconds() + "] " + str);
+		var debugMessage = "[" + dd.getHours() + ":" + dd.getMinutes() + ":" + dd.getSeconds() + ":" + dd.getMilliseconds() + "] " + str;
+		if(debug) { 
+			console.log(debugMessage);
+		}
+		debugMessages.push(debugMessage);
+		if(debugMessages.length > 20) {
+			debugMessages.shift();
+		}
 	};
 	window.debugShoutboxMod = function () {
 		var debugData = [];
@@ -150,7 +155,7 @@ with_jquery(function ($) {
 						if(optionsDB.get("linkimages")) {
 							var imgParent = $(this).parent();
 							if(!imgParent.is("a")) {
-								imgParent.append($('<a href="' + $(this).attr("src") + '"></a>').append($(this)));
+								$(this).wrap('<a href="' + $(this).attr("src") + '"></a>');
 							}
 						}
 					}
@@ -396,12 +401,12 @@ with_jquery(function ($) {
 		cleanOldMessages();
 	};
 
-	///////////////////////////
-	// setQuoteHighlighter()
-	// Enable quote highlighter
-	///////////////////////////
+	/////////////////////////////////////////
+	// getUMyself()
+	// Translate username in secured username
+	/////////////////////////////////////////
 	var uMyself;
-	var setQuoteHighlighter = function () {
+	var getUMyself = function () {
 		uMyself = $(".welcome").find("a").first().text().toLowerCase().replace(/\./g, "_");
 	};
 
@@ -488,7 +493,6 @@ with_jquery(function ($) {
 			$.each(userDB.users, function (secureNick, data) {
 				var aUser = null;
 				if(friend && userDB.isFriend(secureNick)) {
-					var aUser = null;
 					if(usersList[secureNick]) {
 						aUser = createUserLink(usersList[secureNick]);
 					}
@@ -515,6 +519,7 @@ with_jquery(function ($) {
 		if(optionsDB.get("banlist")) {
 			$.each(userDB.users, function (secureNick, data) {
 				if(data.friend) {
+					data.secureNick = secureNick;
 					var aFriend = createUserLink(data);
 					createContextMenu(aFriend, secureNick);
 					if(optionsDB.get("highlightuserfromlist")) {
@@ -559,13 +564,14 @@ with_jquery(function ($) {
 			user.connected = true;
 			user.lastUpdate = 0;
 
-			if(user.classId != thisClassId) {
+			// Class change
+			if(user.classId != thisClassId || (userDB.get(secureNick) && userDB.get(secureNick).classId != thisClassId)) {
 				var thisUserA = $("#u_" + secureNick);
 				if(thisUserA.length) {
 					thisUserA.attr("class", thisUserA.attr("class").replace(user.classId, thisClassId));
 					user.classId = thisClassId;
-					userDB.updateUserClass(secureNick, thisClassId);
 				}
+				userDB.updateUserClass(secureNick, thisClassId);
 			}
 
 			if(user.incomming) {
@@ -1115,7 +1121,7 @@ with_jquery(function ($) {
 				var nom = $("#macro_add_name").val();
 				if(nom === "" || nom === null || !nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
 					$("#macro_add_name").val("");
-					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-")
+					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-");
 					return;
 				}
 
@@ -1442,7 +1448,7 @@ with_jquery(function ($) {
 		$.ajax({
 			type: 'POST',
 			url: urls.statistics + scriptVersion + '/',
-			data: optionsDB.getSendable(),
+			data: {'options': optionsDB.getSendable()},
 			dataType: 'json',
 			success: function(data) {
 				if(data.error) {
@@ -1473,10 +1479,9 @@ with_jquery(function ($) {
 	var backupOptions = function() {
 		var md5pseudo = calcMD5(uMyself);
 		if(userData.isFirstLaunch()) {
-			var urlC = 
 			$.ajax({
 				type: 'GET',
-				url: urls.check + md5pseudo,
+				url: urls.check + md5pseudo + '/',
 				dataType: 'json',
 				success: function(data) {
 					dbg("[Backup] Can I backup from this ?");
@@ -2093,7 +2098,7 @@ with_jquery(function ($) {
 		rename: function(s, k, kR) {
 			var content = this.get(s, k);
 			userData.unset(s, k);
-			userData.set(s, k2, content);
+			userData.set(s, kR, content);
 			this.save();
 		},
 		save: function(s) {
@@ -2154,20 +2159,23 @@ with_jquery(function ($) {
 				this.users[secureName] = {};
 			}
 			this.users[secureName].ignore = true;
+			this.users[secureName].secureNick = secureName;
 			this.users[secureName].userName = userName;
 			this.users[secureName].classId = classId;
 			this.users[secureName].hash = hash;
 			this.save();
 		},
 		isIgnored: function (secureName) {
-			if(optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].ignore) {
-				return true;
-			}
-			return false;
+			return (optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].ignore === true);
 		},
 		removeIgnore: function (secureName) {
 			if(this.users[secureName]) {
-				this.users[secureName].ignore = false;
+				if(!this.users[secureName].friend) {
+					delete this.users[secureName];
+				}
+				else {
+					this.users[secureName].ignore = false;
+				}
 				this.save();
 			}
 		},
@@ -2177,20 +2185,23 @@ with_jquery(function ($) {
 				this.users[secureName] = {};
 			}
 			this.users[secureName].friend = true;
+			this.users[secureName].secureNick = secureName;
 			this.users[secureName].userName = userName;
 			this.users[secureName].classId = classId;
 			this.users[secureName].hash = hash;
 			this.save();
 		},
 		isFriend: function (secureName) {
-			if(optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].friend) {
-				return true;
-			}
-			return false;
+			return (optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].friend === true);
 		},
 		removeFriend: function (secureName) {
 			if(this.users[secureName]) {
-				this.users[secureName].friend = false;
+				if(!this.users[secureName].ignore) {
+					delete this.users[secureName];
+				}
+				else {
+					this.users[secureName].friend = false;
+				}
 				this.save();
 			}
 		},
@@ -2223,7 +2234,11 @@ with_jquery(function ($) {
 			});
 		},
 		setFriendsRaw: function(dArray) {
-			this.users = dArray;
+			$.each(dArray, function (secureNick, data) {
+				data.ignore = (data.ignore ? strToTyped(data.ignore) : false);
+				data.friend = (data.friend ? strToTyped(data.friend) : false);
+				userDB.users[secureNick] = data;
+			})
 			this.save();
 		},
 		clearUsers: function () {
@@ -2238,6 +2253,7 @@ with_jquery(function ($) {
 		}
 	};
 
+	// Builds typed variable with str variable
 	var strToTyped = function(str) {
 		if(str == "true") {
 			return true;
@@ -2260,27 +2276,9 @@ with_jquery(function ($) {
 		store: location.protocol + "//thetabx.net/backup/store_json/ftdb/shoutbox/",
 		check: location.protocol + "//thetabx.net/backup/check_json/ftdb/shoutbox/",
 		retrieve: location.protocol + "//thetabx.net/backup/retrieve_json/ftdb/shoutbox/",
-		statistics: location.protocol + "//thetabx.net/statistics/upload_json/ftdb/shoutbox/"
+		statistics: location.protocol + "//thetabx.net/statistics/upload_json/ftdb/shoutbox/",
+		debug: location.protocol + "//thetabx.net/debug/upload_json/ftdb/shoutbox/"
 	};
-
-	$(".tech").append(' | <a href="#" id="debug_shit">Debug</a>');
-	$("#debug_shit").click(function() {
-		//userDB.storeAll();
-		//userData.storeAll();
-		//optionsDB.storeAll();
-
-		$.getJSON(urls.retrieve + "6c191ba3e3328206616112d000acd7ab/Windows%207/Chrome/", function(data) {
-			$.each(data, function(k, v) {
-				dbg("> " + k + " : " + v);
-				$.each(v, function(k2, v2) {
-					dbg(">> " + k2 + " : " + v2);
-					$.each(v2, function(k3, v3) {
-						dbg(">>> " + k3 + " : " + v3);
-					});
-				});
-			});
-		});
-	});
 
 	// Delay some functions in case of late UI redrawing
 	var loadFinished = function() {
@@ -2289,92 +2287,155 @@ with_jquery(function ($) {
 		scrollNow();
 	};
 
-	// Database updates if needed
-	var pauseStorage = false;
-	if(userData.getDbRev() != revision && !userData.isFirstLaunch()) {
-		var oldRev = userData.getDbRev();
-		switch(oldRev) {
-			default: {
-				pauseStorage = true;
-				var changed = false;
-				$.each(userData.data, function (k, v) {
-					$.each(v, function (nom, d) {
-						if(!nom.match("/^[a-z0-9:_\\\/-]+$/i")) {
-							changed = true;
-							userData.rename(k, nom, nom.replace("/[^a-z0-9:_\\/-]/g", "_"));
-						}
-					})
-				});
-				if(changed) {
-					alert("Certains de vos smileys/macros contenaient des caractères incorrects.\nIls ont été remplacés par '_', n'oubliez pas de les vérifier/renommer.");
-				}
-
-				pauseStorage = false;
-				userDB.storeAll();
-				userData.storeAll();
-				optionsDB.storeAll();
-			}
-		}
-		userData.setDbRev();
-	}
-
 	// Start process
-	userDB.loadUsers();
-	userData.loadData();
-	dbg("Starting");
-	initCSS();
-	if(optionsDB.get("highlightquote")) {
-		setQuoteHighlighter();
+	try {
+		dbg("[Init] Loading data");
+		userDB.loadUsers();
+		userData.loadData();
+
+		dbg("[Init] F: getUMyself");
+		getUMyself();
+
+		// Database updates if needed
+		dbg("[Init] Check for database updates");
+		var pauseStorage = false;
+		if(userData.getDbRev() != revision && !userData.isFirstLaunch()) {
+			var oldRev = userData.getDbRev();
+			switch(oldRev) {
+				case 72: {}
+				default: {
+					dbg("[Init] Upgrading DB from " + oldRev);
+					pauseStorage = true;
+
+					var smileyChanged = [];
+					$.each(userData.data, function (k, v) {
+						$.each(v, function (nom, d) {
+							if(!nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
+								var nomRenamed = nom.replace(/[^a-z0-9:_\\\/-]/g, "_")
+								userData.rename(k, nom, nomRenamed);
+								smileyChanged.push({'nom': nom, 'nomRenamed': nomRenamed});
+							}
+						});
+					});
+					if(smileyChanged.length) {
+						var alertText = "Certains de vos smileys/macros contenaient des caractères incorrects.\nIls ont été remplacés par '_' :\n\n";
+						$.each(smileyChanged, function(k, v) {
+							alertText += v.nom + " => " + v.nomRenamed;
+						});
+						alert(alertText);
+					}
+
+					$.each(userDB.users, function (secureNick, user) {
+						if(user.url) {
+							var hash = user.url.substring(29);
+							if(user.hash) {
+								delete user.url;
+								userDB.users[secureNick] = user;
+							}
+							else if(hash.length == 12) {
+								user.hash = hash;
+								delete user.url;
+								userDB.users[secureNick] = user;
+							}
+						}
+						if(!user.ignore && !user.friend) {
+							delete userDB.users[secureNick];
+						}
+					});
+					
+					pauseStorage = false;
+					userDB.save();
+					userData.save();
+					optionsDB.storeAll();
+				}
+			}
+			userData.setDbRev();
+		}
+
+		dbg("[Init] Starting");
+		initCSS();
+		if(optionsDB.get("statistics")) {
+			dbg("[Init] F: statistics");
+			sendStatistics();
+		}
+		if(optionsDB.get("optionsbak")) {
+			dbg("[Init] F: optionsbak");
+			backupOptions();
+		}
+		if(optionsDB.get("usersmiley")) {
+			dbg("[Init] F: usersmiley");
+			addUSmileyBar();
+		}
+		if(optionsDB.get("chatcommands")) {
+			dbg("[Init] F: chatcommands");
+			addMacroBar();
+		}
+		if(optionsDB.get("autoresize")){
+			dbg("[Init] F: autoresize");
+			setResizer();
+		}
+		if(optionsDB.get("shoutbox")) {
+			dbg("[Init] F: shoutbox");
+			prepareShoutbox();
+		}
+		if(optionsDB.get("userlist")) {
+			dbg("[Init] F: userlist");
+			prepareUserList();
+		}
+		else {
+			dbg("[Init] A: userlist");
+			$("#mod_shoutbox").prepend($(".frame_list"));
+		}
+		dbg("[Init] F: resizeShoutbox");
+		resizeShoutbox();
+		if(optionsDB.get("stickyscroll")) {
+			dbg("[Init] F: stickyscroll");
+			$("#SHOUT_MESSAGE").bind("scroll", shoutBox_OnScroll);
+		}
+		if(optionsDB.get("tabnames")) {
+			dbg("[Init] F: tabnames");
+			$('#shout_text').bind("keyup", shoutBoxText_OnKeyUp);
+		}
+		if(optionsDB.get("usersmiley") || optionsDB.get("tabnames")) {
+			dbg("[Init] F: usersmiley || tabnames");
+			$('#shout_text').bind("keydown", shoutBoxText_OnKeyDown);
+		}
+		if(optionsDB.get("changeautockey")) {
+			autocompleteKey = 39;
+		}
+		if(optionsDB.get("javairc")) {
+			dbg("[Init] F: javairc");
+			showIRCFrame();
+		}
+		if(optionsDB.get("hidegrades")) {
+			dbg("[Init] F: hidegrades");
+			hideGrades();
+		}
+		if(optionsDB.get("blinkmp")) {
+			dbg("[Init] F: blinkmp");
+			blinkIncommingMP();
+		}
+		dbg("[Init] Ending");
+		setWindowFocusTracker();
+		optionsPanelCreator();
+		scrollNow();
+		setTimeout(loadFinished, 200);
+		dbg("[Init] Loading took " + (new Date().getTime() - dt) + "ms");
 	}
-	if(optionsDB.get("statistics")) {
-		sendStatistics();
+	catch(err) {
+		dbg("[Error] Error found, sending repport");
+		var debugData = {debug_messages: debugMessages};
+		var vDebug = ""; 
+		for (var prop in err) {  
+			vDebug += "property: "+ prop+ " value: ["+ err[prop]+ "]\n"; 
+		}
+		vDebug += "toString(): " + " value: [" + err.toString() + "]"; 
+		debugData.error = vDebug; 
+		$.ajax({
+			type: 'POST',
+			url: urls.debug + calcMD5(uMyself) + '/',
+			data: debugData,
+			dataType: 'json'
+		});
 	}
-	if(optionsDB.get("optionsbak")) {
-		backupOptions();
-	}
-	if(optionsDB.get("usersmiley")) {
-		addUSmileyBar();
-	}
-	if(optionsDB.get("chatcommands")) {
-		addMacroBar();
-	}
-	if(optionsDB.get("autoresize")){
-		setResizer();
-	}
-	if(optionsDB.get("shoutbox")) {
-		prepareShoutbox();
-	}
-	if(optionsDB.get("userlist")) {
-		prepareUserList();
-	}
-	else {
-		$("#mod_shoutbox").prepend($(".frame_list"));
-	}
-	resizeShoutbox();
-	if(optionsDB.get("stickyscroll")) {
-		$("#SHOUT_MESSAGE").bind("scroll", shoutBox_OnScroll);
-	}
-	if(optionsDB.get("tabnames")) {
-		$('#shout_text').bind("keyup", shoutBoxText_OnKeyUp);
-	}
-	if(optionsDB.get("usersmiley") || optionsDB.get("tabnames")) {
-		$('#shout_text').bind("keydown", shoutBoxText_OnKeyDown);
-	}
-	if(optionsDB.get("changeautockey")) {
-		autocompleteKey = 39;
-	}
-	if(optionsDB.get("javairc")) {
-		showIRCFrame();
-	}
-	if(optionsDB.get("hidegrades")) {
-		hideGrades();
-	}
-	if(optionsDB.get("blinkmp")) {
-		blinkIncommingMP();
-	}
-	setWindowFocusTracker();
-	optionsPanelCreator();
-	scrollNow();
-	setTimeout(loadFinished, 200);
-	dbg("Loading took " + (new Date().getTime() - dt) + "ms");
 });
