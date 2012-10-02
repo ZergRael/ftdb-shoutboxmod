@@ -33,7 +33,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 73, scriptVersion = '0.7.2.8';
+	var debug = true, revision = 73, scriptVersion = '0.7.2.9';
 	var dt = new Date().getTime();
 	// Debug
 	var debugMessages = [];
@@ -2300,13 +2300,13 @@ with_jquery(function ($) {
 		dbg("[Init] Check for database updates");
 		var pauseStorage = false;
 		if(userData.getDbRev() != revision && !userData.isFirstLaunch()) {
+			pauseStorage = true;
 			var oldRev = userData.getDbRev();
+			dbg("[Init] Upgrading DB from " + oldRev);
 			switch(oldRev) {
-				case 72: {}
-				default: {
-					dbg("[Init] Upgrading DB from " + oldRev);
-					pauseStorage = true;
-
+				case 72: { // 73
+				}
+				default: { // 72
 					var smileyChanged = [];
 					$.each(userData.data, function (k, v) {
 						$.each(v, function (nom, d) {
@@ -2343,12 +2343,14 @@ with_jquery(function ($) {
 						}
 					});
 					
-					pauseStorage = false;
-					userDB.save();
-					userData.save();
-					optionsDB.storeAll();
+					
 				}
 			}
+			pauseStorage = false;
+			userDB.save();
+			userData.save();
+			optionsDB.storeAll();
+			
 			userData.setDbRev();
 		}
 

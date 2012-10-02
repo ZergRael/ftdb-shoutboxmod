@@ -3,7 +3,7 @@
 // @namespace       http://thetabx.net
 // @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB (Version IE)
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
-// @version         0.7.2.9
+// @version         0.7.2.13
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
@@ -40,7 +40,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 73, scriptVersion = '0.7.2.9';
+	var debug = true, revision = 73, scriptVersion = '0.7.2.12';
 	var dt = new Date().getTime();
 	// Debug
 	var debugMessages = [];
@@ -2315,13 +2315,13 @@ with_jquery(function ($) {
 		dbg("[Init] Check for database updates");
 		var pauseStorage = false;
 		if(userData.getDbRev() != revision && !userData.isFirstLaunch()) {
+			pauseStorage = true;
 			var oldRev = userData.getDbRev();
+			dbg("[Init] Upgrading DB from " + oldRev);
 			switch(oldRev) {
-				case 72: {}
-				default: {
-					dbg("[Init] Upgrading DB from " + oldRev);
-					pauseStorage = true;
-
+				case 72: { // 73
+				}
+				default: { //72
 					var smileyChanged = [];
 					$.each(userData.data, function (k, v) {
 						$.each(v, function (nom, d) {
@@ -2357,13 +2357,13 @@ with_jquery(function ($) {
 							delete userDB.users[secureNick];
 						}
 					});
-					
-					pauseStorage = false;
-					userDB.save();
-					userData.save();
-					optionsDB.storeAll();
 				}
 			}
+			pauseStorage = false;
+			userDB.save();
+			userData.save();
+			optionsDB.storeAll();
+
 			userData.setDbRev();
 		}
 
