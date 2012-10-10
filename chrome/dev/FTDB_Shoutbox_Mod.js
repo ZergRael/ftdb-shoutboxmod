@@ -17,6 +17,9 @@
 // + Backup update on change only
 // + Smiley/Macro name sanitizer
 // ! Clickable images position
+// From 0.7.2
+// + Antiflood filter
+// ! Database revsion updater
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -33,7 +36,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 73, scriptVersion = '0.7.2.9';
+	var debug = true, revision = 73, scriptVersion = '0.7.2.32';
 	var dt = new Date().getTime();
 	// Debug
 	var debugMessages = [];
@@ -119,13 +122,14 @@ with_jquery(function ($) {
 			dbg("[Shoutbox] In time");
 			lastTimestamp = timestamp;
 		}
-
+		
 		var pureTimestamp = new Date().valueOf();
 		var lastOriginalHtmlDuringProcess = $("#TQC_SHOUT_MESSAGE ul:first").html();
 		dbg("[Shoutbox] Analysis");
 		var foundLastMessage = (!$("#SHOUT_MESSAGE ul").length);
 		var notifySound = false;
 		var iMess = 0;
+		var lastMessage = false;
 
 		$($("#TQC_SHOUT_MESSAGE ul").get().reverse()).each(function () {
 			var message = $(this);
@@ -134,9 +138,16 @@ with_jquery(function ($) {
 				if(message.html() == lastOriginalHtmlBeforeProcess) {
 					foundLastMessage = true;
 				}
+				lastMessage = message.html();
 				return;
 			}
-			
+
+			if(message.html() == lastOriginalHtmlBeforeProcess || lastMessage == message.html()) {
+				lastMessage = message.html();
+				return;
+			}
+
+			lastMessage = message.html();
 			iMess++;
 			var showThisMessage = true;
 			// Images/Smiley process
