@@ -5,13 +5,10 @@
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
 // @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
 // @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.7.2.9
+// @version         0.7.3
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
-// From 0.6.4
-// ! Fix stats
-// ! Back to forum links
 // From 0.6.5
 // ! Torrent title from link (id-hash)
 // ! secureNick correction
@@ -27,6 +24,16 @@
 // + Backup update on change only
 // + Smiley/Macro name sanitizer
 // ! Clickable images position
+// From 0.7.2
+// + Antiflood filter
+// ! Database revsion updater
+// + Remove text style effects
+// + Torrent name detector
+// ! User filter performance
+// + Time correction
+// From 0.7.3
+// - Time correction
+// ! Highlight correction
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -43,7 +50,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 73, scriptVersion = '0.7.2.9';
+	var debug = true, revision = 74, scriptVersion = '0.7.3.1';
 	var dt = new Date().getTime();
 	// Debug
 	var debugMessages = [];
@@ -136,6 +143,7 @@ with_jquery(function ($) {
 		var foundLastMessage = (!$("#SHOUT_MESSAGE ul").length);
 		var notifySound = false;
 		var iMess = 0;
+		var lastMessage = false;
 
 		$($("#TQC_SHOUT_MESSAGE ul").get().reverse()).each(function () {
 			var message = $(this);
@@ -144,9 +152,16 @@ with_jquery(function ($) {
 				if(message.html() == lastOriginalHtmlBeforeProcess) {
 					foundLastMessage = true;
 				}
+				lastMessage = message.html();
 				return;
 			}
-			
+
+			if(message.html() == lastOriginalHtmlBeforeProcess || lastMessage == message.html()) {
+				lastMessage = message.html();
+				return;
+			}
+
+			lastMessage = message.html();
 			iMess++;
 			var showThisMessage = true;
 			// Images/Smiley process
@@ -192,10 +207,33 @@ with_jquery(function ($) {
 				message.find('span[style*="color"]').each(function () {
 					$(this).replaceWith($(this).text());
 				});
+				message.find('b').unwrap();
+				message.find('i').unwrap();
+				message.find('u').unwrap();
+				message.find('strike').unwrap();
+			}
+
+			// Torrent name detector
+			if(optionsDB.get("detectlinks")) {
+				var searchText = $(this).text().match("(?:[\\w\\d]*\\.[\\w\\d]*){2,12}-[\\w\\d]*");
+				if(searchText) {
+					$(this).html($(this).html().replace(searchText, '<a href="/?section=TORRENTS&name=' + searchText + '&search=Rechercher&exact=1">' + searchText + '</a>'));
+				}
 			}
 			
 			// Links process
 			if(processLink) {
+				if(me.length) {
+					if(optionsDB.get("banlist") && userDB.isIgnored(secureNickU)) {
+						showThisMessage = false;
+					}
+					else {
+						if(usersList[secureNickU]) {
+							usersList[secureNickU].lastAct = pureTimestamp + iMess;
+						}
+					}
+				}
+
 				message.find("a").each(function (i) {
 					var aLink = $(this);
 					if(optionsDB.get("linknewtab")) {
@@ -204,7 +242,7 @@ with_jquery(function ($) {
 
 					if(aLink.attr("class") && aLink.attr("class").indexOf("class_") != -1) {
 						var secureNick = aLink.text().toLowerCase().replace(/\./g, "_");
-						if(i === 0) {
+						if(i === 0 && !me.length) {
 							if(optionsDB.get("banlist") && userDB.isIgnored(secureNick)) {
 								showThisMessage = false;
 							}
@@ -216,9 +254,10 @@ with_jquery(function ($) {
 									usersList[secureNick] = { 'secureNick': secureNick, 'userName': aLink.text(), 'hash': aLink.attr("href").substring(29), 'classId': aLink.attr("class").split(" ")[0], 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'incomming': false, 'lastAct': pureTimestamp + iMess, 'connected': false };
 								}
 							}
-							if(optionsDB.get("shoutbanlist")) {
-								createContextMenu(aLink, secureNick);
-							}
+						}
+
+						if(optionsDB.get("shoutbanlist")) {
+							createContextMenu(aLink, secureNick);
 						}
 
 						if(secureNick == uMyself && (i !== 0 || me.length) && optionsDB.get("highlightquote")) {
@@ -227,7 +266,7 @@ with_jquery(function ($) {
 								notifySound = true;
 							}
 						}
-							
+						
 						if(optionsDB.get("highlightuser")) {
 							aLink.hover(function () {
 								$(".u_" + secureNick).addClass("highlight_mouseover");
@@ -503,7 +542,6 @@ with_jquery(function ($) {
 			$.each(userDB.users, function (secureNick, data) {
 				var aUser = null;
 				if(friend && userDB.isFriend(secureNick)) {
-					var aUser = null;
 					if(usersList[secureNick]) {
 						aUser = createUserLink(usersList[secureNick]);
 					}
@@ -535,7 +573,7 @@ with_jquery(function ($) {
 					createContextMenu(aFriend, secureNick);
 					if(optionsDB.get("highlightuserfromlist")) {
 						aFriend.hover(function () {
-							$(".shout_rowalt").removeClass("highlight_mouseover");
+							$("#mod_shoutbox ul").removeClass("highlight_mouseover");
 							$(".u_" + secureNick).addClass("highlight_mouseover");
 						}, function () {
 							$(".u_" + secureNick).removeClass("highlight_mouseover");
@@ -602,7 +640,7 @@ with_jquery(function ($) {
 
 					if(optionsDB.get("highlightuserfromlist")) {
 						userA.hover(function () {
-							$(".shout_rowalt").removeClass("highlight_mouseover");
+							$("#mod_shoutbox ul").removeClass("highlight_mouseover");
 							$(".u_" + secureNick).addClass("highlight_mouseover");
 						}, function () {
 							$(".u_" + secureNick).removeClass("highlight_mouseover");
@@ -750,22 +788,22 @@ with_jquery(function ($) {
 			});
 			$("#context_filter").click(function () {
 				addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="#" id="stop_filter">Arrêter le filtrage</a>');
-				$(".shout_rowalt").each(function () {
+				filtering = secureNick;
+				$("#mod_shoutbox ul").each(function () {
 					if(!$(this).hasClass("u_" + secureNick) && !$(this).hasClass("user_added")) {
-						filtering = secureNick;
 						$(this).hide();
-						$("#stop_filter").click(function () {
-							filtering = "";
-							$(".shout_rowalt").each(function () {
-								if(!userDB.isIgnored(secureNick)) {
-									$(this).show();
-								}
-							});
-							$(".user_added").remove();
-							scrollNow();
-							return false;
-						});
 					}
+				});
+				$("#stop_filter").click(function () {
+					filtering = "";
+					$("#mod_shoutbox ul").each(function () {
+						if(!userDB.isIgnored(secureNick)) {
+							$(this).show();
+						}
+					});
+					$(".user_added").remove();
+					scrollNow();
+					return false;
 				});
 			});
 			return false;
@@ -793,7 +831,7 @@ with_jquery(function ($) {
 	/////////////////////////////////
 	var selectedUserName = "", keyPressed = 0;
 	var shoutBoxText_OnKeyUp = function (e) {
-		keyPressed = (keyPressed === 0 ? keyPressed : keyPressed - 1);
+		keyPressed = (keyPressed <= 0 ? 0 : keyPressed - 1);
 		if(e.which < 32 || e.which > 111 || e.ctrlKey || e.altKey || (e.shiftKey && e.which > 36 && e.which < 41) || optionsDB.get("tabirc")) { return; }
 
 		var inputBox = $(this);
@@ -1132,7 +1170,7 @@ with_jquery(function ($) {
 				var nom = $("#macro_add_name").val();
 				if(nom === "" || nom === null || !nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
 					$("#macro_add_name").val("");
-					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-")
+					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-");
 					return;
 				}
 
@@ -1197,6 +1235,7 @@ with_jquery(function ($) {
 	var setWindowFocusTracker = function () { 
 		$(window).focus(function () {
 			if(!isWindowFocused && messageCount > 0 && optionsDB.get("nmessagetitle")) {
+				isWindowFocused = true;
 				document.title = "FrenchTorrentDB - ShoutBox";
 				$($("#SHOUT_MESSAGE ul").get().reverse()).each(function () {
 					messageCount--;
@@ -1887,9 +1926,9 @@ with_jquery(function ($) {
 				"#shout_text { width: 99%; } " : "") +
 
 			"#mod_shoutbox { " + (optionsDB.get("font") != "Par défaut" ? 'font-family: ' + optionsDB.get("font") + '; ' : '') + "} " +
-			".mod_shoutbox .shout_rowalt.highlight_mouseover { background-color: #BFD !important; } " +
-			".mod_shoutbox .shout_rowalt.highlight_quote { background-color: #FFA !important; } " +
-			".mod_shoutbox .shout_rowalt.highlight_nonread { background-color: #FAC !important; } " +
+			".mod_shoutbox ul.highlight_mouseover { background-color: #BFD !important; } " +
+			".mod_shoutbox ul.highlight_quote { background-color: #FFA !important; } " +
+			".mod_shoutbox ul.highlight_nonread { background-color: #FAC !important; } " +
 			".mod_shoutbox .frame { width: auto; height : 100%; } " +
 			".mod_shoutbox #user_list_block { width: " + userlist_width + "px;  float: right; overflow-x: hidden; } " +
 
@@ -1985,11 +2024,12 @@ with_jquery(function ($) {
 			hidesmileys: {defaultVal: false, type: "check", requires: ["#check_hidesmileys", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les smileys par leur équivalent texte', reqLast: false},
 			hideimages: {defaultVal: false, type: "check", requires: ["#check_hideimages", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les images par leur lien', reqLast: false},
 			hideflash: {defaultVal: true, type: "check", requires: ["#check_hideflash", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les embed flash par leur lien', reqLast: false},
-			hidecolor: {defaultVal: false, type: "check", requires: ["#check_hidecolor", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Empêcher la coloration du texte', reqLast: false},
+			hidecolor: {defaultVal: false, type: "check", requires: ["#check_hidecolor", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Enlever les effets de style du texte', reqLast: false},
 			linkimages: {defaultVal: false, type: "check", requires: ["#check_linkimages", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Rendre les images cliquables', reqLast: false},
 			stickyscroll: {defaultVal: true, type: "check", requires: ["#check_stickyscroll", "#check_revertshout", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Scroll statique intelligent', reqLast: false},
 			avoidprotocolchange: {defaultVal: true, type: "check", requires: ["#check_avoidprotocolchange", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Eviter les changements http/https des liens', reqLast: false},
 			autolinks: {defaultVal: true, type: "check", requires: ["#check_autolinks", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Remplacer les liens vers un torrent/topic par leur titre', reqLast: false},
+			detectlinks: {defaultVal: true, type: "check", requires: ["#check_detectlinks", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Detecteur de titre de torrents', reqLast: false},
 			linknewtab: {defaultVal: false, type: "check", requires: ["#check_linknewtab", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Ouvrir les liens de la shoutbox dans un nouvel onglet', reqLast: false},
 			highlightuser: {defaultVal: false, type: "check", requires: ["#check_highlightuser", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Mettre en surbrillance les posts d\'un utilisateur par passage de souris sur son pseudo', reqLast: false},
 			highlightuserfromlist: {defaultVal: false, type: "check", requires: ["#check_highlightuserfromlist", "#check_highlightuser", "#check_shoutbox"], frame: "#option_shoutbox", text: 'Depuis la liste d\'utilisteurs aussi', reqLast: true},
@@ -2313,14 +2353,11 @@ with_jquery(function ($) {
 		dbg("[Init] Check for database updates");
 		var pauseStorage = false;
 		if(userData.getDbRev() != revision && !userData.isFirstLaunch()) {
+			pauseStorage = true;
 			var oldRev = userData.getDbRev();
-			dbg("[Init] Upgrade needed " + oldRev + " - " + revision);
+			dbg("[Init] Upgrading DB from " + oldRev);
 			switch(oldRev) {
-				case 72: {}
-				default: {
-					dbg("[Init] Upgrading DB from " + oldRev);
-					pauseStorage = true;
-
+				case null: { // Before rev -> 72
 					var smileyChanged = [];
 					$.each(userData.data, function (k, v) {
 						$.each(v, function (nom, d) {
@@ -2329,7 +2366,7 @@ with_jquery(function ($) {
 								userData.rename(k, nom, nomRenamed);
 								smileyChanged.push({'nom': nom, 'nomRenamed': nomRenamed});
 							}
-						})
+						});
 					});
 					if(smileyChanged.length) {
 						var alertText = "Certains de vos smileys/macros contenaient des caractères incorrects.\nIls ont été remplacés par '_' :\n\n";
@@ -2356,13 +2393,17 @@ with_jquery(function ($) {
 							delete userDB.users[secureNick];
 						}
 					});
-					
-					pauseStorage = false;
-					userDB.save();
-					userData.save();
-					optionsDB.storeAll();
+				}
+				case 72: { // -> 73
+				}
+				case 73: { // -> 74
 				}
 			}
+			pauseStorage = false;
+			userDB.save();
+			userData.save();
+			optionsDB.storeAll();
+
 			userData.setDbRev();
 		}
 
