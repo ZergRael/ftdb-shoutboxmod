@@ -50,7 +50,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 74, scriptVersion = '0.7.3.1';
+	var debug = true, revision = 74, scriptVersion = '0.7.3.2';
 	var dt = new Date().getTime();
 	// Debug
 	var debugMessages = [];
@@ -64,6 +64,22 @@ with_jquery(function ($) {
 		if(debugMessages.length > 20) {
 			debugMessages.shift();
 		}
+	};
+	var sendReport = function (err) {
+		dbg("[Error] Error found, sending report");
+		var debugData = {debug_messages: debugMessages};
+		var vDebug = ""; 
+		for (var prop in err) {  
+			vDebug += "property: "+ prop+ " value: ["+ err[prop]+ "]\n"; 
+		}
+		vDebug += "toString(): " + " value: [" + err.toString() + "]"; 
+		debugData.error = vDebug; 
+		$.ajax({
+			type: 'POST',
+			url: urls.debug + calcMD5(uMyself) + '/',
+			data: debugData,
+			dataType: 'json'
+		});
 	};
 	window.debugShoutboxMod = function () {
 		var debugData = [];
@@ -1563,15 +1579,20 @@ with_jquery(function ($) {
 								url: urls.retrieve + md5pseudo + '/' + OSUA[0] + '/' + OSUA[1] + '/',
 								dataType: 'json',
 								success: function(data) {
-									pauseStorage = true;
-									dbg("[Backup] Set raw array for options");
-									optionsDB.setAllRaw(data.options);
-									dbg("[Backup] Set raw array for friends");
-									userDB.setFriendsRaw(data.friends);
-									$.each(data.userdata, function(s, d) {
-										dbg("[Backup] Set raw array for userdata[" + s + "]");
-										userData.setAllRaw(s, d);
-									});
+									try {
+										pauseStorage = true;
+										dbg("[Backup] Set raw array for options");
+										optionsDB.setAllRaw(data.options);
+										dbg("[Backup] Set raw array for friends");
+										userDB.setFriendsRaw(data.friends);
+										$.each(data.userdata, function(s, d) {
+											dbg("[Backup] Set raw array for userdata[" + s + "]");
+											userData.setAllRaw(s, d);
+										});
+									}
+									catch (err) {
+										sendReport(err);
+									}
 									window.location.reload();
 								}
 							});
@@ -2478,19 +2499,6 @@ with_jquery(function ($) {
 		dbg("[Init] Loading took " + (new Date().getTime() - dt) + "ms");
 	}
 	catch(err) {
-		dbg("[Error] Error found, sending repport");
-		var debugData = {debug_messages: debugMessages};
-		var vDebug = ""; 
-		for (var prop in err) {  
-			vDebug += "property: "+ prop+ " value: ["+ err[prop]+ "]\n"; 
-		}
-		vDebug += "toString(): " + " value: [" + err.toString() + "]"; 
-		debugData.error = vDebug; 
-		$.ajax({
-			type: 'POST',
-			url: urls.debug + calcMD5(uMyself) + '/',
-			data: debugData,
-			dataType: 'json'
-		});
+		sendReport(err);
 	}
 });
