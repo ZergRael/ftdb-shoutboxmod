@@ -40,7 +40,7 @@ function with_jquery(f) {
 with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
-	var debug = true, revision = 74, scriptVersion = '0.7.3.1';
+	var debug = true, revision = 73, scriptVersion = '0.7.2.32';
 	var dt = new Date().getTime();
 	// Debug
 	var debugMessages = [];
@@ -126,7 +126,7 @@ with_jquery(function ($) {
 			dbg("[Shoutbox] In time");
 			lastTimestamp = timestamp;
 		}
-
+		
 		var pureTimestamp = new Date().valueOf();
 		var lastOriginalHtmlDuringProcess = $("#TQC_SHOUT_MESSAGE ul:first").html();
 		dbg("[Shoutbox] Analysis");
