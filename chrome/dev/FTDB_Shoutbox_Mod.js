@@ -1,3 +1,13 @@
+// ==UserScript==
+// @name            FTDB Shoutbox Mod
+// @namespace       http://thetabx.net
+// @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB
+// @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
+// @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
+// @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
+// @version         0.7.3
+// ==/UserScript==
+
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
 // From 0.6.5
 // ! Torrent title from link (id-hash)
@@ -24,6 +34,7 @@
 // From 0.7.3
 // - Time correction
 // ! Highlight correction
+// ! External process rework
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -42,7 +53,7 @@ with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
 	// General info stuff
-	var debug = true, revision = 74, scriptVersion = '0.7.2.35';
+	var debug = true, revision = 74, scriptVersion = '0.7.3';
 	var dt = new Date().getTime();
 
 	// Debug
@@ -104,7 +115,7 @@ with_jquery(function ($) {
 		$.each(userData.data, function (k) {
 			userData.clearData(k);
 		});
-		GM_setValue("data_saved", false);
+		storageSetValue("data_saved", false);
 		userDB.clearUsers();
 		alert("ShoutboxMod data cleared !");
 		window.location.reload();
@@ -1506,7 +1517,7 @@ with_jquery(function ($) {
 	var sendStatistics = function () {
 		$.ajax({
 			type: 'POST',
-			url: urls.statistics + scriptVersion + '/',
+			url: urls.statistics + scriptVersion + '/' + (debug ? 'debug/' : ''),
 			data: {'options': optionsDB.getSendable()},
 			dataType: 'json',
 			success: function(data) {
@@ -1522,7 +1533,7 @@ with_jquery(function ($) {
 				else if(data.needUpdate) {
 					dbg("[Statistics] New version available");
 					lastVersion = data.lastVersion;
-					addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">Une nouvelle version est disponible (' + data.lastVersion + ') !</a> La mise à jour devrait être automatique au prochain redémarage de Chrome.');
+					addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", '<a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">Une nouvelle version est disponible (' + data.lastVersion + ') !</a> ' + (($.browser.chrome || $.browser.mozilla) ? "La mise à jour devrait être automatique au prochain redémarage de votre navigateur." : "N'oubliez pas de la télécharger !"));
 				}
 				else {
 					dbg("[Statistics] Can't get version from server");
@@ -1574,13 +1585,19 @@ with_jquery(function ($) {
 								success: function(data) {
 									try {
 										pauseStorage = true;
-										dbg("[Backup] Set raw array for options");
-										optionsDB.setAllRaw(data.options);
-										dbg("[Backup] Set raw array for friends");
-										userDB.setFriendsRaw(data.friends);
+										if(data.options != false) {
+											dbg("[Backup] Set raw array for options");
+											optionsDB.setAllRaw(data.options);
+										}
+										if(data.friends != false) {
+											dbg("[Backup] Set raw array for friends");
+											userDB.setFriendsRaw(data.friends);
+										}
 										$.each(data.userdata, function(s, d) {
-											dbg("[Backup] Set raw array for userdata[" + s + "]");
-											userData.setAllRaw(s, d);
+											if(d != false) {
+												dbg("[Backup] Set raw array for userdata[" + s + "]");
+												userData.setAllRaw(s, d);
+											}
 										});
 									}
 									catch (err) {
@@ -1998,13 +2015,13 @@ with_jquery(function ($) {
 	};
 
 	////////////////////////////////////////////////////////
-	// GM_getValue(name, default) / GM_setValue(name, value)
-	// GreaseMonkey functs adapt to chrome
+	// storageGetValue(name, default) / storageSetValue(name, value)
+	// localStorage management
 	////////////////////////////////////////////////////////
 	if(localStorage === null) {
 		alert("[FTDB] Il semblerait que le localStorage soit désactivé.\nVeuillez l'activer avant d'utiliser le script!");
 	}
-	var GM_getValue = function (name, defaultValue) {
+	var storageGetValue = function (name, defaultValue) {
 		var value = localStorage.getItem(name);
 		if (!value) {
 			return defaultValue;
@@ -2020,7 +2037,7 @@ with_jquery(function ($) {
 				return value;
 		}
 	};
-	var GM_setValue = function (name, value) {
+	var storageSetValue = function (name, value) {
 		value = (typeof value)[0] + value;
 		localStorage.setItem(name, value);
 	};
@@ -2093,11 +2110,11 @@ with_jquery(function ($) {
 		set: function (k, v) {
 			if(this.opt[k] === undefined) { return; }
 			this.opt[k].val = v;
-			GM_setValue(k, v);
+			storageSetValue(k, v);
 		},
 		get: function (k) {
 			if(this.opt[k].val === undefined) {
-				this.opt[k].val = GM_getValue(k);
+				this.opt[k].val = storageGetValue(k);
 				if(this.opt[k].val === undefined) {
 					this.opt[k].val = this.opt[k].defaultVal;
 				}
@@ -2117,7 +2134,7 @@ with_jquery(function ($) {
 		clearAll: function() {
 			$.each(optionsDB.opt, function (k, v) {
 				if(v.type != "button") {
-					GM_setValue(k, v.defaultVal);
+					storageSetValue(k, v.defaultVal);
 				}
 			});
 		},
@@ -2167,7 +2184,7 @@ with_jquery(function ($) {
 			this.save();
 		},
 		save: function(s) {
-			GM_setValue("data_" + s, JSON.stringify(this.data[s]));
+			storageSetValue("data_" + s, JSON.stringify(this.data[s]));
 			this.storeAll();
 		},
 		getAll: function(s) {
@@ -2179,12 +2196,12 @@ with_jquery(function ($) {
 		},
 		clearData: function(s) {
 			this.data[s] = {};
-			GM_setValue("data_" + s, JSON.stringify(this.data[s]));
+			storageSetValue("data_" + s, JSON.stringify(this.data[s]));
 		},
 		loadData: function() {
 			var thisData = this;
 			$.each(this.data, function (k) {
-				var dataGM = GM_getValue("data_" + k);
+				var dataGM = storageGetValue("data_" + k);
 				if(dataGM !== undefined) {
 					thisData.data[k] = JSON.parse(dataGM);
 				}
@@ -2200,16 +2217,16 @@ with_jquery(function ($) {
 			});
 		},
 		isFirstLaunch: function() {
-			return GM_getValue("data_saved") !== true;
+			return storageGetValue("data_saved") !== true;
 		},
 		setLaunchedFirst: function() {
-			GM_setValue("data_saved", true);
+			storageSetValue("data_saved", true);
 		},
 		getDbRev: function() {
-			return GM_getValue("data_db_rev");
+			return storageGetValue("data_db_rev");
 		},
 		setDbRev: function() {
-			GM_setValue("data_db_rev", revision);
+			storageSetValue("data_db_rev", revision);
 		}
 	};
 
@@ -2286,7 +2303,7 @@ with_jquery(function ($) {
 		},
 
 		save: function() {
-			GM_setValue("users", JSON.stringify(this.users));
+			storageSetValue("users", JSON.stringify(this.users));
 			this.storeAll();
 		},
 		storeAll: function() {
@@ -2308,10 +2325,10 @@ with_jquery(function ($) {
 		},
 		clearUsers: function () {
 			this.users =  {};
-			GM_setValue("users", JSON.stringify(this.users));
+			storageSetValue("users", JSON.stringify(this.users));
 		},
 		loadUsers: function () {
-			var usersGM = GM_getValue("users");
+			var usersGM = storageGetValue("users");
 			if(usersGM !== undefined) {
 				this.users = JSON.parse(usersGM);
 			}
@@ -2336,13 +2353,13 @@ with_jquery(function ($) {
 
 	// External urls
 	var urls = {
-		soundNotif: location.protocol + "//thetabx.net/download/audio/notifications/",
-		audioPlayer: location.protocol + "//thetabx.net/download/audio-player.swf",
-		store: location.protocol + "//thetabx.net/backup/store_json/ftdb/shoutbox/",
-		check: location.protocol + "//thetabx.net/backup/check_json/ftdb/shoutbox/",
-		retrieve: location.protocol + "//thetabx.net/backup/retrieve_json/ftdb/shoutbox/",
-		statistics: location.protocol + "//thetabx.net/statistics/upload_json/ftdb/shoutbox/",
-		debug: location.protocol + "//thetabx.net/debug/upload_json/ftdb/shoutbox/"
+		soundNotif: 	location.protocol + "//thetabx.net/download/ftdb/smod/audio/notifications/",
+		audioPlayer: 	location.protocol + "//thetabx.net/download/ftdb/smod/audio-player.swf",
+		store: 			location.protocol + "//thetabx.net/ftdb_smod/backup/store/",
+		check: 			location.protocol + "//thetabx.net/ftdb_smod/backup/check/",
+		retrieve: 		location.protocol + "//thetabx.net/ftdb_smod/backup/retrieve/",
+		statistics: 	location.protocol + "//thetabx.net/ftdb_smod/statistics/upload/",
+		debug: 			location.protocol + "//thetabx.net/ftdb_smod/debug/upload/"
 	};
 
 	// Delay some functions in case of late UI redrawing
