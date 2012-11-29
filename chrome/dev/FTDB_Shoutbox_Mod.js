@@ -35,6 +35,9 @@
 // - Time correction
 // ! Highlight correction
 // ! External process rework
+// ! Userlist tampon
+// + Updated announce
+// ! Data management
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -53,7 +56,7 @@ with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
 	// General info stuff
-	var debug = true, revision = 74, scriptVersion = '0.7.3';
+	var debug = true, revision = 75, scriptVersion = '0.7.3';
 	var dt = new Date().getTime();
 
 	// Debug
@@ -215,10 +218,10 @@ with_jquery(function ($) {
 			}
 
 			// User highlight process
-			var secureNickU = message.find("a").first().text().toLowerCase().replace(/\./g, "_");
+			var secureNickU = toSecure(message.find("a").first().text());
 			var me = message.find(".me");
 			if(me.length) {
-				secureNickU = me.text().split(" ")[0].toLowerCase().replace(/\./g, "_");
+				secureNickU = toSecure(me.text().split(" ")[0]);
 			}
 			message.addClass("u_" + secureNickU);
 
@@ -261,7 +264,7 @@ with_jquery(function ($) {
 					}
 
 					if(aLink.attr("class") && aLink.attr("class").indexOf("class_") != -1) {
-						var secureNick = aLink.text().toLowerCase().replace(/\./g, "_");
+						var secureNick = toSecure(aLink.text());
 						if(i === 0 && !me.length) {
 							if(optionsDB.get("banlist") && userDB.isIgnored(secureNick)) {
 								showThisMessage = false;
@@ -476,7 +479,7 @@ with_jquery(function ($) {
 	/////////////////////////////////////////
 	var uMyself;
 	var getUMyself = function () {
-		uMyself = $(".welcome").find("a").first().text().toLowerCase().replace(/\./g, "_");
+		uMyself = toSecure($(".welcome").find("a").first().text());
 	};
 
 	///////////////////////////////
@@ -620,7 +623,7 @@ with_jquery(function ($) {
 		$("#user_change").empty();
 		var lastSecureNick = "";
 		$(".frame_list a").each(function () {
-			var secureNick =  $(this).text().toLowerCase().replace(/\./g, "_");
+			var secureNick =  toSecure($(this).text());
 			var user = usersList[secureNick];
 			var thisClassId = $(this).attr("class").split(" ")[0];
 			if(!user) {
@@ -693,7 +696,7 @@ with_jquery(function ($) {
 		var hiddenPos = $("#user_list").width();
 		$.each(usersList, function (secureNick, userData) {
 			if(!userData.connected) { return; }
-			if(userData.lastUpdate === 0) {
+			if(userData.lastUpdate <= 1) {
 				userData.lastUpdate++;
 			}
 			else {
@@ -716,7 +719,6 @@ with_jquery(function ($) {
 		if($("#user_change a").length && $("#user_change a").length <= optionsDB.get("user_disable_threshold")) {
 			$("#user_change").slideDown(100).delay(2600).slideUp(100);
 		}
-		dbg("[Userlist] Update end");
 	};
 
 	/////////////////////////////////
@@ -844,6 +846,10 @@ with_jquery(function ($) {
 		}
 		return $('<a href="/?section=ACCOUNT_INFOS&hash=' + user.hash + '" class="' + user.classId + (user.friend ? ' user_friend' : '') + (user.ignore ? ' user_ignored' : '') + (user.incomming ? ' user_change_enter' : '') + (user.going ? ' user_change_gone' : '') +'">' + (user.incomming ? '+ ' : '') + (user.going ? '- ' : '') + user.userName + '</a>');
 	};
+
+	var toSecure = function (str) {
+		return str.toLowerCase().replace(/[^a-z0-9]/g, "_");
+	}
 
 	/////////////////////////////////
 	// shoutBoxText_OnKeyUp(keyEvent)
@@ -1002,9 +1008,9 @@ with_jquery(function ($) {
 				}
 				else {
 					var str = firstWord.substring(1);
-					$.each(userData.data.macro, function (nom, text) {
-						if(nom == str) {
-							splitStr[0] = text;
+					$.each(userData.data.macro, function (k, data) {
+						if(data.name == str) {
+							splitStr[0] = data.text;
 						}
 					});
 					textBox.val(splitStr.join(" "));
@@ -1013,9 +1019,9 @@ with_jquery(function ($) {
 
 			if(optionsDB.get("usersmiley")) {
 				$.each(splitStr, function(i, str) {
-					$.each(userData.data.smiley, function (nom, url) {
-						if(nom == str) {
-							splitStr[i] = "[img]" + url + "[/img]";
+					$.each(userData.data.smiley, function (k, data) {
+						if(data.name == str) {
+							splitStr[i] = "[img]" + data.url + "[/img]";
 						}
 					});
 				});
@@ -1065,7 +1071,7 @@ with_jquery(function ($) {
 		var sText = $("#shout_text");
 		// User smileys
 		$.each(userData.getAll("smiley"), function (k,v) {
-			$("#bbcode_usersmiley").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" title="' + k + '" class="bbcode_usersmiley" />');
+			$("#bbcode_usersmiley").append('<img src="' + v.url + '" width="16" height="16" alt="' + k + '" title="' + v.name + '" class="bbcode_usersmiley" />');
 		});
 		$(".bbcode_usersmiley").click(function() {
 			sText.val(sText.val().substring(0, sText[0].selectionStart) + ' [img]' + $(this).attr("src") + '[/img] ' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
@@ -1087,38 +1093,40 @@ with_jquery(function ($) {
 				var url = $("#usm_add_url").val();
 				if(url === "" || url === null || (url.indexOf("http://") == -1)) {
 					$("#usm_add_url").val("");
-					alert("Url incorrecte");
+					alert("Url incorrecte !");
 					return;
 				}
 
 				var nom = $("#usm_add_name").val();
-				if(nom === "" || nom === null || !nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
+				if(nom === "" || nom === null) {
 					$("#usm_add_name").val("");
-					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-");
+					alert("Nom incorrect !");
 					return;
 				}
 
-				if(userData.get("smiley", nom) === undefined) {
+				if(userData.getByName("smiley", nom) === false) {
 					var img = new Image();
 					img.onload = function() {
 						dbg("Image w:" + this.width + " h:" + this.height);
 						if(this.width > 64 || this.height > 64) {
 							if(!confirm("Cette image est trop grosse et risque de ralentir votre navigateur !\nÊtes-vous sur de l'ajouter ?")) { return; }
 						}
-						userData.set("smiley", nom, url);
+						var key = userData.add("smiley", { "name": nom, "url": url});
 
-						$("#usm_del").append($(' <img src="' + url + '" width="16" height="16" alt="' + nom + '" class="usersmiley_rem" /> ').click(function() {
+						$("#usm_del").append($(' <img src="' + url + '" width="16" height="16" alt="' + key + '" title="Supprimer ' + nom + '" class="usersmiley_rem" /> ').click(function() {
 							$("#usm_add_name").val(nom);
 							$("#usm_add_url").val(url);
-							userData.unset("smiley", nom);
-							$('.bbcode_usersmiley[alt="' + nom + '"]').remove();
-							$('.usersmiley_rem[alt="' + nom + '"]').remove();
+							userData.unset("smiley", key);
+							$('.bbcode_usersmiley[alt="' + key + '"]').remove();
+							$('.usersmiley_rem[alt="' + key + '"]').remove();
 						}));
 
-						$("#bbcode_usersmiley").append($(' <img src="' + url + '" width="16" height="16" alt="' + nom + '" class="bbcode_usersmiley" /> ').click(function() {
+						$("#bbcode_usersmiley").append($('<img src="' + url + '" width="16" height="16" alt="' + key + '" title="' + nom + '" class="bbcode_usersmiley" />').click(function() {
 							sText.val(sText.val().substring(0, sText[0].selectionStart) + ' [img]' + url + '[/img] ' + sText.val().substring(sText[0].selectionEnd, sText.val().length));
 							sText.focus();
 						}));
+						$("#usm_add_name").val("");
+						$("#usm_add_url").val("");
 					};
 					img.src = url;
 				}
@@ -1126,15 +1134,16 @@ with_jquery(function ($) {
 			});
 
 			$.each(userData.getAll("smiley"), function (k,v) {
-				$("#usm_del").append('<img src="' + v + '" width="16" height="16" alt="' + k + '" title="Supprimer ' + k + '" class="usersmiley_rem" />');
+				$("#usm_del").append(' <img src="' + v.url + '" width="16" height="16" alt="' + k + '" title="Supprimer ' + v.name + '" class="usersmiley_rem" /> ');
 			});
 
 			$(".usersmiley_rem").click(function() {
-				var name = $(this).attr("alt");
-				$("#usm_add_name").val(name);
-				$("#usm_add_url").val(userData.get("smiley", name));
-				userData.unset("smiley", name);
-				$('.bbcode_usersmiley[alt="' + name + '"]').remove();
+				var key = $(this).attr("alt");
+				var smileyData = userData.get("smiley", key)
+				$("#usm_add_name").val(smileyData.name);
+				$("#usm_add_url").val(smileyData.url);
+				userData.unset("smiley", key);
+				$('.bbcode_usersmiley[alt="' + key + '"]').remove();
 				$(this).remove();
 			});
 
@@ -1183,39 +1192,42 @@ with_jquery(function ($) {
 				var text = $("#macro_add_text").val();
 				if(text === "" || text === null) {
 					$("#macro_add_text").val("");
-					alert("Texte incorrect");
+					alert("Texte incorrect !");
 					return;
 				}
 
 				var nom = $("#macro_add_name").val();
-				if(nom === "" || nom === null || !nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
+				if(nom === "" || nom === null) {
 					$("#macro_add_name").val("");
-					alert("Nom incorrect. Doit être composé de caractères alphanumériques ainsi que :_\\/-");
+					alert("Nom incorrect !");
 					return;
 				}
 
-				if(userData.get("macro", nom) === undefined && nom != "mp" && nom != "me" && nom != "error") {
-					userData.set("macro", nom, text);
+				if(userData.getByName("macro", nom) === false && nom != "mp" && nom != "me" && nom != "error") {
+					var key = userData.add("macro", {"name": nom, "text": text});
 
 					$("#macro_del").append($('<a class="macro_rem" href="#">/' + nom + '</a><br />').click(function() {
 						$("#macro_add_name").val(name);
-						$("#macro_add_text").val(userData.get("macro", name));
-						userData.unset("macro", nom);
+						$("#macro_add_text").val(text);
+						userData.unset("macro", key);
 						$(this).remove();
 					}));
+					$("#macro_add_text").val("");
+					$("#macro_add_name").val("");
 				}
 				else { alert("Cette macro existe déjà !"); }
 			});
 
-			$.each(userData.getAll("macro"), function (k) {
-				$("#macro_del").append('<a class="macro_rem" href="#">/' + k + '</a><br />');
+			$.each(userData.getAll("macro"), function (k, v) {
+				$("#macro_del").append('<a class="macro_rem" href="#">/' + v.name + '</a><br />');
 			});
 
 			$(".macro_rem").click(function() {
 				var name = $(this).text().substring(1);
+				var macroKey = userData.getByName("macro", name)
 				$("#macro_add_name").val(name);
-				$("#macro_add_text").val(userData.get("macro", name));
-				userData.unset("macro", name);
+				$("#macro_add_text").val(userData.get("macro", macroKey).text);
+				userData.unset("macro", macroKey);
 				$(this).remove();
 			});
 
@@ -1441,7 +1453,6 @@ with_jquery(function ($) {
 	var URLEncode2 = function (string) {
 		var SAFECHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_.!~*'()";
 		var HEX = "0123456789ABCDEF";
-		var REPLACE = {"’": "'", "€": "e"};
 
 		var plaintext = string;
 		var encoded = "";
@@ -1453,9 +1464,6 @@ with_jquery(function ($) {
 			}
 			else if (SAFECHARS.indexOf(ch) != -1) {
 				encoded += ch;
-			}
-			else if (REPLACE[ch] !== undefined) {
-				encoded += REPLACE[ch];
 			}
 			else {
 				var charCode = ch.charCodeAt(0);
@@ -1585,16 +1593,16 @@ with_jquery(function ($) {
 								success: function(data) {
 									try {
 										pauseStorage = true;
-										if(data.options != false) {
+										if(data.options) {
 											dbg("[Backup] Set raw array for options");
 											optionsDB.setAllRaw(data.options);
 										}
-										if(data.friends != false) {
+										if(data.friends) {
 											dbg("[Backup] Set raw array for friends");
 											userDB.setFriendsRaw(data.friends);
 										}
 										$.each(data.userdata, function(s, d) {
-											if(d != false) {
+											if(d) {
 												dbg("[Backup] Set raw array for userdata[" + s + "]");
 												userData.setAllRaw(s, d);
 											}
@@ -2014,10 +2022,10 @@ with_jquery(function ($) {
 		$("head").append('<style id="resizableCSS"></style>');
 	};
 
-	////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////
 	// storageGetValue(name, default) / storageSetValue(name, value)
 	// localStorage management
-	////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////
 	if(localStorage === null) {
 		alert("[FTDB] Il semblerait que le localStorage soit désactivé.\nVeuillez l'activer avant d'utiliser le script!");
 	}
@@ -2160,16 +2168,29 @@ with_jquery(function ($) {
 	////////////
 	var userData = {
 		data: {
-			smiley: {},
-			macro: {}
+			smiley: [],
+			macro: []
 		},
 
 		set: function(s, k, v) {
 			this.data[s][k] = v;
 			this.save(s);
 		},
+		add: function(s, v) {
+			this.data[s].push(v);
+			this.save(s);
+			return this.getByName(s, v.name);
+		},
 		get: function(s, k) {
 			return this.data[s][k];
+		},
+		getByName: function(s, name) {
+			for (k in this.data[s]) {
+				if (this.data[s][k].name == name) {
+					return k;
+				}
+			}
+			return false;
 		},
 		unset: function(s, k) {
 			if(this.data[s][k] !== undefined) {
@@ -2177,12 +2198,12 @@ with_jquery(function ($) {
 				this.save(s);
 			}
 		},
-		rename: function(s, k, kR) {
+		/*rename: function(s, k, kR) {
 			var content = this.get(s, k);
 			userData.unset(s, k);
 			userData.set(s, kR, content);
 			this.save();
-		},
+		},*/
 		save: function(s) {
 			storageSetValue("data_" + s, JSON.stringify(this.data[s]));
 			this.storeAll();
@@ -2195,7 +2216,7 @@ with_jquery(function ($) {
 			this.save(s);
 		},
 		clearData: function(s) {
-			this.data[s] = {};
+			this.data[s] = [];
 			storageSetValue("data_" + s, JSON.stringify(this.data[s]));
 		},
 		loadData: function() {
@@ -2216,6 +2237,7 @@ with_jquery(function ($) {
 				dataType: 'json'
 			});
 		},
+
 		isFirstLaunch: function() {
 			return storageGetValue("data_saved") !== true;
 		},
@@ -2230,9 +2252,9 @@ with_jquery(function ($) {
 		}
 	};
 
-	//////////
-	// user DB
-	//////////
+	/////////////////
+	// users Database
+	/////////////////
 	var userDB = {
 		users: {},
 
@@ -2343,7 +2365,7 @@ with_jquery(function ($) {
 		if(str == "false") {
 			return false;
 		}
-		if(str.match("\\d+")) {
+		if(str.match("^\\d+$")) {
 			return Number(str);
 		}
 		else {
@@ -2371,40 +2393,26 @@ with_jquery(function ($) {
 
 	// Start process
 	try {
-		dbg("[Init] Loading data");
-		userDB.loadUsers();
-		userData.loadData();
-
 		dbg("[Init] F: getUMyself");
 		getUMyself();
+
+		dbg("[Init] Loading data");
+		userDB.loadUsers();
+		if(userData.getDbRev() < 75) {
+			userData.data.smiley = {};
+			userData.data.macro = {};
+		}
+		userData.loadData();
 
 		// Database updates if needed
 		dbg("[Init] Check for database updates");
 		var pauseStorage = false;
-		if(userData.getDbRev() != revision && !userData.isFirstLaunch()) {
+		if(userData.getDbRev() != revision) {
 			pauseStorage = true;
 			var oldRev = userData.getDbRev();
 			dbg("[Init] Upgrading DB from " + oldRev);
 			switch(oldRev) {
 				case null: { // Before rev -> 72
-					var smileyChanged = [];
-					$.each(userData.data, function (k, v) {
-						$.each(v, function (nom, d) {
-							if(!nom.match(/^[a-z0-9:_\\\/-]+$/i)) {
-								var nomRenamed = nom.replace(/[^a-z0-9:_\\\/-]/g, "_")
-								userData.rename(k, nom, nomRenamed);
-								smileyChanged.push({'nom': nom, 'nomRenamed': nomRenamed});
-							}
-						});
-					});
-					if(smileyChanged.length) {
-						var alertText = "Certains de vos smileys/macros contenaient des caractères incorrects.\nIls ont été remplacés par '_' :\n\n";
-						$.each(smileyChanged, function(k, v) {
-							alertText += v.nom + " => " + v.nomRenamed;
-						});
-						alert(alertText);
-					}
-
 					$.each(userDB.users, function (secureNick, user) {
 						if(user.url) {
 							var hash = user.url.substring(29);
@@ -2423,9 +2431,37 @@ with_jquery(function ($) {
 						}
 					});
 				}
-				case 72: { // -> 73
-				}
-				case 73: { // -> 74
+				case 72:
+				case 73:
+				case 74: {
+					$.each(userDB.users, function (secureNick, user) {
+						if(!secureNick.match(/^[a-z0-9]+$/i)) {
+							var securedNick = secureNick.replace(/[^a-z0-9]/g, "_");
+							user.secureNick = securedNick;
+							userDB.users[securedNick] = user;
+							delete userDB.users[secureNick];
+						}
+					});
+					var tempSmileys = [];
+					$.each(userData.data.smiley, function (k, v) {
+						if(typeof v == "string") {
+							userData.unset("smiley", k);
+							tempSmileys.push({ "name": k, "url": v });
+						}
+					});
+					if(tempSmileys.length) {
+						userData.setAllRaw("smiley", tempSmileys);
+					}
+					var tempMacros = [];
+					$.each(userData.data.macro, function (k, v) {
+						if(typeof v == "string") {
+							userData.unset("macro", k);
+							tempMacros.push({ "name": k, "text": v });
+						}
+					});
+					if(tempMacros.length) {
+						userData.setAllRaw("macro", tempMacros);
+					}
 				}
 			}
 			pauseStorage = false;
@@ -2434,6 +2470,9 @@ with_jquery(function ($) {
 			optionsDB.storeAll();
 
 			userData.setDbRev();
+			setTimeout(function() {
+				addTextToShoutbox("[FTDB Shoutbox Mod]", "/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332", "class_70", 'SMod a été mis à jour correctement. Pensez à regarder le <a href="/?section=FORUMS&module=mod_forums&forum_id=6&topic_id=6332">topic associé</a> pour les nouvelles fonctionnalités.');
+			}, 2000);
 		}
 
 		dbg("[Init] Starting");
