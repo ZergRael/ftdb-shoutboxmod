@@ -3,27 +3,12 @@
 // @namespace       http://thetabx.net
 // @description     Améliorations et ajout de fonctions pour la Shoutbox de FTDB
 // @include         *://*.frenchtorrentdb.com/?section=COMMUNAUTE*
-// @downloadURL     https://thetabx.net/download/FTDB_Shoutbox_Mod.user.js
-// @updateURL       https://thetabx.net/download/FTDB_Shoutbox_Mod.meta.js
-// @version         0.7.3
+// @downloadURL     https://thetabx.net/download/ftdb/smod/FTDB_Shoutbox_Mod.user.js
+// @updateURL       https://thetabx.net/download/ftdb/smod/FTDB_Shoutbox_Mod.meta.js
+// @version         0.7.6
 // ==/UserScript==
 
 // Changelog (+ : Addition / - : Delete / ! : Bugfix / § : Issue / * : Modification)
-// From 0.6.5
-// ! Torrent title from link (id-hash)
-// ! secureNick correction
-// ! Hightlight detection
-// + Temporary filter
-// ! Rewrite userlist
-// + Userlist tampon
-// ! Friend/ignore management
-// + Tab in idle order
-// ! Avoid text coloration
-// ! Friend class updater
-// + Full JSON external urls process
-// + Backup update on change only
-// + Smiley/Macro name sanitizer
-// ! Clickable images position
 // From 0.7.2
 // + Antiflood filter
 // ! Database revsion updater
@@ -38,6 +23,13 @@
 // ! Userlist tampon
 // + Updated announce
 // ! Data management
+// ! Smileys names
+// ! Long url without resize
+// + Notes on users
+// + Idletime / last connection
+
+// TODO
+// Separate account data / shared computer
 
 ///////////////////////////////////////////////
 // Use jquery in userscripts
@@ -56,7 +48,7 @@ with_jquery(function ($) {
 	if (!$("#mod_shoutbox").length) { return; }
 
 	// General info stuff
-	var debug = true, revision = 75, scriptVersion = '0.7.3';
+	var debug = true, revision = 75, scriptVersion = '0.7.6';
 	var dt = new Date().getTime();
 
 	// Debug
@@ -274,7 +266,7 @@ with_jquery(function ($) {
 									usersList[secureNick].lastAct = pureTimestamp + iMess;
 								}
 								else {
-									usersList[secureNick] = { 'secureNick': secureNick, 'userName': aLink.text(), 'hash': aLink.attr("href").substring(29), 'classId': aLink.attr("class").split(" ")[0], 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'incomming': false, 'lastAct': pureTimestamp + iMess, 'connected': false };
+									usersList[secureNick] = { 'secureNick': secureNick, 'userName': aLink.text(), 'hash': aLink.attr("href").substring(29), 'classId': aLink.attr("class").split(" ")[0], 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'note': userDB.getNote(secureNick), 'incomming': false, 'lastAct': pureTimestamp + iMess, 'connected': false };
 								}
 							}
 						}
@@ -623,11 +615,11 @@ with_jquery(function ($) {
 		$("#user_change").empty();
 		var lastSecureNick = "";
 		$(".frame_list a").each(function () {
-			var secureNick =  toSecure($(this).text());
+			var secureNick = toSecure($(this).text());
 			var user = usersList[secureNick];
 			var thisClassId = $(this).attr("class").split(" ")[0];
 			if(!user) {
-				user = { 'secureNick': secureNick, 'userName': $(this).text(), 'hash': $(this).attr("href").substring(29), 'classId': thisClassId, 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'incomming': true, 'lastAct': 0 };
+				user = { 'secureNick': secureNick, 'userName': $(this).text(), 'hash': $(this).attr("href").substring(29), 'classId': thisClassId, 'friend': userDB.isFriend(secureNick), 'ignore': userDB.isIgnored(secureNick), 'note': userDB.getNote(secureNick), 'incomming': true, 'lastAct': 0 };
 			}
 			if(!user.connected) {
 				user.incomming = true;
@@ -735,7 +727,7 @@ with_jquery(function ($) {
 		userA.click(function (e) {
 			if(e.which == 2) { return true; }
 
-			$("#website").append('<div id="context_menu"><div id="context_head">' + user.userName + '</div><div class="context_option"><a href="/?section=ACCOUNT_INFOS&hash=' + user.hash + '" target="blank_">Profil</a></div><div id="write_mp" class="context_option"><a href="/?section=ACCOUNT_INFOS&hash=' + user.hash + '&module=mod_account_sendmsg#box_mod_account_sendmsg" target="blank_">Envoyer un MP</a></div><div class="context_option"><a id="context_friend">' + (userDB.isFriend(secureNick) ? 'Enlever des amis' : 'Ajouter aux amis') + '</a></div><div class="context_option"><a id="context_ignore">' + (userDB.isIgnored(secureNick) ? 'Ne plus ignorer' : 'Ignorer') + '</a></div><div class="context_option"><a id="context_filter">Filtrer</a></div></div>');
+			$("#website").append('<div id="context_menu"><div id="context_head">' + user.userName + '</div><div class="context_option"><a href="/?section=ACCOUNT_INFOS&hash=' + user.hash + '" target="blank_">Profil</a></div><div id="write_mp" class="context_option"><a href="/?section=ACCOUNT_INFOS&hash=' + user.hash + '&module=mod_account_sendmsg#box_mod_account_sendmsg" target="blank_">Envoyer un MP</a></div><div class="context_option"><a id="context_friend">' + (userDB.isFriend(secureNick) ? 'Enlever des amis' : 'Ajouter aux amis') + '</a></div><div class="context_option"><a id="context_ignore">' + (userDB.isIgnored(secureNick) ? 'Ne plus ignorer' : 'Ignorer') + '</a></div><div class="context_option"><a id="context_filter">Filtrer</a></div><div class="context_option"><a id="context_note">Note</a></div></div>');
 			$("#context_menu").css({ "left": (e.pageX - 15) + "px", "top": (e.pageY - 10) + "px" });
 			$("#context_menu").mouseleave(function () { $(this).remove(); });
 			$(".context_option").hover(function () { $(this).css({"background-color": "#CCF"}); }, function () { $(this).css({"background-color": "#CCC"}); });
@@ -828,6 +820,9 @@ with_jquery(function ($) {
 					return false;
 				});
 			});
+			$("#context_note").click(function () {
+				openNoteWindow(secureNick, user.userName, userA.attr("class").split(" ")[0], user.hash);
+			});
 			return false;
 		});
 		return userA;
@@ -837,7 +832,31 @@ with_jquery(function ($) {
 		if(!user.hash) {
 			user.hash = user.url.substring(29);
 		}
-		return $('<a href="/?section=ACCOUNT_INFOS&hash=' + user.hash + '" id="u_' + user.secureNick + '" class="' + user.classId + (user.friend ? ' user_friend' + (user.connected ? ' user_friend_connected' : ' user_friend_disconnected') : '') + (user.ignore ? ' user_ignored' : '') + '">' + user.userName + '</a>');
+		var userA = $('<a href="/?section=ACCOUNT_INFOS&hash=' + user.hash + '" id="u_' + user.secureNick + '" class="' + user.classId + (user.friend ? ' user_friend' + (user.connected ? ' user_friend_connected' : ' user_friend_disconnected') : '') + (user.ignore ? ' user_ignored' : '') + '"' + (user.note && user.note != "" ? ' title="' + user.note + '"' : '') + '>' + user.userName + '</a>');
+		if(optionsDB.get("userstats")) {
+			userA.mouseenter(function() {
+				var now_userstats = new Date().getTime();
+				if(now_userstats - userA.data("last_userstats_pull") < 10000) { return; }
+				userA.data("last_userstats_pull", now_userstats);
+				$.ajax({
+					type: 'GET',
+					url: urls.userstats + user.hash + '/',
+					dataType: 'json',
+					success: function(data) {
+						if(data.hash) {
+							title = "";
+							if(user.note && user.note != "") {
+								title += user.note + "\n\n";
+							}
+							title += "Dernière connexion : " + data.lastConnection;
+							title += "\nDernière activité : " + data.idleTime;
+							userA.attr("title", title);
+						}
+					}
+				});
+			});
+		}
+		return userA;
 	};
 
 	var createChangeLink = function (user) {
@@ -849,7 +868,26 @@ with_jquery(function ($) {
 
 	var toSecure = function (str) {
 		return str.toLowerCase().replace(/[^a-z0-9]/g, "_");
-	}
+	};
+
+	var openNoteWindow = function(secureNick, username, classId, hash) {
+		dbg("[Note] Opening set note frame");
+		$("#website").append('<div id="note_frame" class="ftdb_panel"><h3><center>Modifier la note de ' + username + '</center></h3>' +
+			'<div class="note_text"><textarea id="note_text_input">' + (userDB.getNote(secureNick) ? userDB.getNote(secureNick) : '') + '</textarea></div>' +
+			'<div class="frame_buttons" id="note_buttons"><input type="button" id="apply_note" value=" Appliquer " /> <input type="button" id="cancel_note" value=" Annuler " /></div></div>');
+
+		$("#apply_note").click(function() {
+			var note = $("#note_text_input").val();
+			userDB.setNote(secureNick, username, classId, hash, note);
+			$("#u_" + secureNick).attr('title', note);
+			$("#note_frame").remove();
+		});
+
+		$("#cancel_note").click(function() {
+			$("#note_frame").remove();
+		});
+		dbg("[Note] Note frame is ready");
+	};
 
 	/////////////////////////////////
 	// shoutBoxText_OnKeyUp(keyEvent)
@@ -1369,7 +1407,7 @@ with_jquery(function ($) {
 				if($("#receive_mp_frame").length) {
 					$("#receive_mp_frame").remove();
 				}
-				$("#website").append('<div id="receive_mp_frame" class="ftdb_panel mp_frame"><div class="mp_from">De : <b>' + MPSender + '</b></div><div class="mp_subject">Sujet : ' + MPSubject + '</div><div class="mp_text">' + $($(data).find('div [style="padding: 0 0 10px 0; line-height: 25px"]')[0]).html() + '</div><div class="mp_buttons" id="receive_mp_buttons"><input type="button" id="reply_frame_show" value=" Répondre au MP " /> <input type="button" id="close_mp" value=" Fermer " /></div></div>');
+				$("#website").append('<div id="receive_mp_frame" class="ftdb_panel mp_frame"><div class="mp_from">De : <b>' + MPSender + '</b></div><div class="mp_subject">Sujet : ' + MPSubject + '</div><div class="mp_text">' + $($(data).find('div [style="padding: 0 0 10px 0; line-height: 25px"]')[0]).html() + '</div><div class="frame_buttons" id="receive_mp_buttons"><input type="button" id="reply_frame_show" value=" Répondre au MP " /> <input type="button" id="close_mp" value=" Fermer " /></div></div>');
 				$("#reply_frame_show").click(function () { appendMPReplyFrame(MPId, MPSenderHash, MPSender); });
 				$("#close_mp").click(function () { $("#receive_mp_frame").remove(); });
 			}
@@ -1385,7 +1423,7 @@ with_jquery(function ($) {
 		cleanAllFrames(true);
 		
 		$("#receive_mp_buttons").hide();
-		$("#receive_mp_frame").append('<div id="reply_mp_frame"><div class="mp_to">Répondre a : <b>' + userName + '</b></div><div class="mp_text"><textarea id="mp_text_input" name="msg"></textarea></div><div class="mp_buttons" id="reply_mp_buttons"><input type="button" name="submit" id="reply_mp" value=" Envoyer " /> <input type="button" id="cancel_reply_mp" value=" Annuler " /> <input type="button" id="close_mp_full" value=" Fermer " /></div><div class="confirm">Message envoyé !</div></div>');
+		$("#receive_mp_frame").append('<div id="reply_mp_frame"><div class="mp_to">Répondre a : <b>' + userName + '</b></div><div class="mp_text"><textarea id="mp_text_input" name="msg"></textarea></div><div class="frame_buttons" id="reply_mp_buttons"><input type="button" name="submit" id="reply_mp" value=" Envoyer " /> <input type="button" id="cancel_reply_mp" value=" Annuler " /> <input type="button" id="close_mp_full" value=" Fermer " /></div><div class="confirm">Message envoyé !</div></div>');
 		$("#reply_mp").click(function () {
 			if($("#mp_text_input").val() === "") { return; }
 
@@ -1417,7 +1455,7 @@ with_jquery(function ($) {
 	var createMPSendFrame = function (hash, userName) {
 		cleanAllFrames(false);
 		
-		$("#website").append('<div id="send_mp_frame" class="ftdb_panel mp_frame"><div class="mp_to">A : <b>' + userName + '</b></div><div class="mp_subject"><input type="text" id="mp_subject_input"/></div><div class="mp_text"><textarea id="mp_text_input"></textarea></div><div class="mp_buttons" id="send_mp_buttons"><input type="button" id="send_mp" value=" Envoyer le MP " /> <input type="button" id="cancel_mp" value=" Annuler " /></div><div class="confirm">Message envoyé !</div></div>');
+		$("#website").append('<div id="send_mp_frame" class="ftdb_panel mp_frame"><div class="mp_to">A : <b>' + userName + '</b></div><div class="mp_subject"><input type="text" id="mp_subject_input"/></div><div class="mp_text"><textarea id="mp_text_input"></textarea></div><div class="frame_buttons" id="send_mp_buttons"><input type="button" id="send_mp" value=" Envoyer le MP " /> <input type="button" id="cancel_mp" value=" Annuler " /></div><div class="confirm">Message envoyé !</div></div>');
 		$("#send_mp").click(function () { 
 			if($("#mp_subject_input").val() === "" || $("#mp_text_input").val() === "") { return; }
 
@@ -1579,7 +1617,7 @@ with_jquery(function ($) {
 						});
 						
 						backupFrame += '</div>' + (thisBackup === "" ? '' : '<br />Attention : \'Ignorer\' écrasera définitevement la sauvegarde <b>' + thisBackup + '</b>');
-						$("#website").append(backupFrame + '</div><div id="backup_buttons"><input type="button" id="backup_button_retrieve" value=" Récupération " /> <input type="button" id="backup_button_ignore" value=" Ignorer " /></div></div>');
+						$("#website").append(backupFrame + '</div><div id="frame_buttons"><input type="button" id="backup_button_retrieve" value=" Récupération " /> <input type="button" id="backup_button_ignore" value=" Ignorer " /></div></div>');
 					
 						$("#backup_button_retrieve").click(function() {
 							var radioChecked = $(".backRadio:checked");
@@ -1953,7 +1991,6 @@ with_jquery(function ($) {
 
 		$("head").append("<style>" +
 			(optionsDB.get("autoresize") ?
-				"#SHOUT_MESSAGE { overflow-x: hidden; } " +
 				(optionsDB.get("resizestats") ?
 					"#top_content .arian_nav { width: " + optionsDB.get("shoutbox_width") + "%; } " +
 					"#top_content .users_stats { width: 100%; } " : "") +
@@ -1964,6 +2001,7 @@ with_jquery(function ($) {
 				"#mod_shoutbox { height: " + optionsDB.get("shoutbox_height") + "px; } " + 
 				"#shout_text { width: 99%; } " : "") +
 
+			"#SHOUT_MESSAGE { overflow-x: hidden; } " +
 			"#mod_shoutbox { " + (optionsDB.get("font") != "Par défaut" ? 'font-family: ' + optionsDB.get("font") + '; ' : '') + "} " +
 			".mod_shoutbox ul.highlight_mouseover { background-color: #BFD !important; } " +
 			".mod_shoutbox ul.highlight_quote { background-color: #FFA !important; } " +
@@ -1990,6 +2028,7 @@ with_jquery(function ($) {
 			".selected_option { font-style: italic; } " +
 
 			".ftdb_panel { padding: 10px; width: auto; height: auto; position: absolute; display: block; z-index: 9000; top: 200px; left: 200px; background-color: #EEE; color: #111; border-radius: 15px; border: 2px solid #222; } " +
+			".frame_buttons { text-align: center; margin-top: 12px; } " + 
 
 			".bbcode_bar { padding: 4px; float: left; } " +
 			"#user_bbcode_bar { height: 30px; border-top: 1px solid #DDD; line-height: 18px; clear: both; } " +
@@ -2006,11 +2045,9 @@ with_jquery(function ($) {
 			".mp_text { margin-top: 4px; } " +
 			"#mp_subject_input { width: 100%; box-sizing: border-box; } " +
 			"#mp_text_input { width: 335px; height: 120px; box-sizing: border-box; } " +
-			".mp_buttons { text-align: center; margin-top: 12px; } " +
 			"#reply_mp_frame { padding-top: 8px; margin-top: 8px; border-top: 1px solid #666} " +
 
 			".backup_title { font-size: 1.4em; font-weight: bold; text-align: center; border-bottom: 1px solid #DDD; } " +
-			"#backup_buttons { text-align: center; margin-top: 12px; } " + 
 
 			"#options_box { margin-top: 9px; border: 2px groove threedface; padding: 6px; } " +
 			"#options_panel a:hover { color: #FFF; } " +
@@ -2087,6 +2124,7 @@ with_jquery(function ($) {
 			user_disable_threshold: {defaultVal: 10, type: "number", requires: ["#txt_user_disable_threshold", "#check_userlist"], minVal: 0, maxVal: 100, frame: "#option_userlist", text: 'Nombre de (dé)connexions annoncées', reqLast: false},
 			banlist: {defaultVal: false, type: "check", requires: ["#check_banlist", "#check_userlist", "#check_shoutbox"], frame: "#option_userlist", text: 'Ajoute un menu contextuel au clic sur les utilisateurs (MP/Amis/Ignorer)', reqLast: false},
 			shoutbanlist: {defaultVal: false, type: "check", requires: ["#check_shoutbanlist", "#check_banlist", "#check_userlist", "#check_shoutbox"], frame: "#option_userlist", text: 'Depuis la shoutbox aussi', reqLast: true},
+			userstats: {defaultVal: false, type: "check", requires: ["#check_userstats", "#check_banlist", "#check_userlist"], frame: "#option_userlist", text: 'Ajouter les stats au mouseover de l\'utilisateur', reqLast: false},
 			resetbanlist: {type: "button", requires: ["#check_banlist", "#check_userlist"], frame: "#option_userlist", text: 'Réinitialiser la liste d\'amis/ignorés', confirm: 'Etes-vous sur de supprimer la liste des amis/ignorés ?', funct: function () { userDB.clearUsers(); }, reqLast: false},
 
 			// Resize
@@ -2194,16 +2232,11 @@ with_jquery(function ($) {
 		},
 		unset: function(s, k) {
 			if(this.data[s][k] !== undefined) {
-				delete this.data[s][k];
+				this.data[s].splice(k, 1);
 				this.save(s);
 			}
 		},
-		/*rename: function(s, k, kR) {
-			var content = this.get(s, k);
-			userData.unset(s, k);
-			userData.set(s, kR, content);
-			this.save();
-		},*/
+
 		save: function(s) {
 			storageSetValue("data_" + s, JSON.stringify(this.data[s]));
 			this.storeAll();
@@ -2274,11 +2307,9 @@ with_jquery(function ($) {
 		},
 		removeIgnore: function (secureName) {
 			if(this.users[secureName]) {
-				if(!this.users[secureName].friend) {
+				this.users[secureName].ignore = false;
+				if(!this.isUsable(secureName)) {
 					delete this.users[secureName];
-				}
-				else {
-					this.users[secureName].ignore = false;
 				}
 				this.save();
 			}
@@ -2300,14 +2331,30 @@ with_jquery(function ($) {
 		},
 		removeFriend: function (secureName) {
 			if(this.users[secureName]) {
-				if(!this.users[secureName].ignore) {
+				this.users[secureName].friend = false;
+				if(!this.isUsable(secureName)) {
 					delete this.users[secureName];
-				}
-				else {
-					this.users[secureName].friend = false;
 				}
 				this.save();
 			}
+		},
+
+		setNote: function (secureName, userName, classId, hash, note) {
+			if(!this.users[secureName]) {
+				this.users[secureName] = {};
+			}
+			this.users[secureName].secureNick = secureName;
+			this.users[secureName].userName = userName;
+			this.users[secureName].classId = classId;
+			this.users[secureName].hash = hash;
+			this.users[secureName].note = note;
+			if(!this.isUsable(secureName)) {
+				delete this.users[secureName];
+			}
+			this.save();
+		},
+		getNote: function (secureName) {
+			return (optionsDB.get("banlist") && this.users[secureName] && this.users[secureName].note) ? this.users[secureName].note : false;
 		},
 
 		get: function(secureName) {
@@ -2322,6 +2369,9 @@ with_jquery(function ($) {
 			}
 			this.users[secureName].classId = classId;
 			this.save();
+		},
+		isUsable: function (secureName) {
+			return (this.users[secureName].friend || this.users[secureName].ignore || (this.users[secureName].note && this.users[secureName].note != ""));
 		},
 
 		save: function() {
@@ -2381,7 +2431,8 @@ with_jquery(function ($) {
 		check: 			location.protocol + "//thetabx.net/ftdb_smod/backup/check/",
 		retrieve: 		location.protocol + "//thetabx.net/ftdb_smod/backup/retrieve/",
 		statistics: 	location.protocol + "//thetabx.net/ftdb_smod/statistics/upload/",
-		debug: 			location.protocol + "//thetabx.net/ftdb_smod/debug/upload/"
+		debug: 			location.protocol + "//thetabx.net/ftdb_smod/debug/upload/",
+		userstats:		location.protocol + "//thetabx.net/ftdb/user_stats/get/"
 	};
 
 	// Delay some functions in case of late UI redrawing
@@ -2411,59 +2462,54 @@ with_jquery(function ($) {
 			pauseStorage = true;
 			var oldRev = userData.getDbRev();
 			dbg("[Init] Upgrading DB from " + oldRev);
-			switch(oldRev) {
-				case null: { // Before rev -> 72
-					$.each(userDB.users, function (secureNick, user) {
-						if(user.url) {
-							var hash = user.url.substring(29);
-							if(user.hash) {
-								delete user.url;
-								userDB.users[secureNick] = user;
-							}
-							else if(hash.length == 12) {
-								user.hash = hash;
-								delete user.url;
-								userDB.users[secureNick] = user;
-							}
+			if(oldRev == null) { // Before revision implementation
+				$.each(userDB.users, function (secureNick, user) {
+					if(user.url) {
+						var hash = user.url.substring(29);
+						if(user.hash) {
+							delete user.url;
+							userDB.users[secureNick] = user;
 						}
-						if(!user.ignore && !user.friend) {
-							delete userDB.users[secureNick];
+						else if(hash.length == 12) {
+							user.hash = hash;
+							delete user.url;
+							userDB.users[secureNick] = user;
 						}
-					});
+					}
+					if(!user.ignore && !user.friend) {
+						delete userDB.users[secureNick];
+					}
+				});
+			}
+			if(oldRev < 75) {
+				$.each(userDB.users, function (secureNick, user) {
+					if(!secureNick.match(/^[a-z0-9]+$/i)) {
+						var securedNick = secureNick.replace(/[^a-z0-9]/g, "_");
+						user.secureNick = securedNick;
+						delete userDB.users[secureNick];
+						userDB.users[securedNick] = user;
+					}
+				});
+				var tempSmileys = [];
+				$.each(userData.data.smiley, function (k, v) {
+					if(typeof v == "string") {
+						tempSmileys.push({ "name": k, "url": v });
+					}
+				});
+				if(tempSmileys.length) {
+					userData.setAllRaw("smiley", tempSmileys);
 				}
-				case 72:
-				case 73:
-				case 74: {
-					$.each(userDB.users, function (secureNick, user) {
-						if(!secureNick.match(/^[a-z0-9]+$/i)) {
-							var securedNick = secureNick.replace(/[^a-z0-9]/g, "_");
-							user.secureNick = securedNick;
-							userDB.users[securedNick] = user;
-							delete userDB.users[secureNick];
-						}
-					});
-					var tempSmileys = [];
-					$.each(userData.data.smiley, function (k, v) {
-						if(typeof v == "string") {
-							userData.unset("smiley", k);
-							tempSmileys.push({ "name": k, "url": v });
-						}
-					});
-					if(tempSmileys.length) {
-						userData.setAllRaw("smiley", tempSmileys);
+				var tempMacros = [];
+				$.each(userData.data.macro, function (k, v) {
+					if(typeof v == "string") {
+						tempMacros.push({ "name": k, "text": v });
 					}
-					var tempMacros = [];
-					$.each(userData.data.macro, function (k, v) {
-						if(typeof v == "string") {
-							userData.unset("macro", k);
-							tempMacros.push({ "name": k, "text": v });
-						}
-					});
-					if(tempMacros.length) {
-						userData.setAllRaw("macro", tempMacros);
-					}
+				});
+				if(tempMacros.length) {
+					userData.setAllRaw("macro", tempMacros);
 				}
 			}
+
 			pauseStorage = false;
 			userDB.save();
 			userData.save();
