@@ -9,7 +9,7 @@
   "content_scripts": [
     {
       "matches": ["*://*.frenchtorrentdb.com/?section=COMMUNAUTE"],
-      "js": ["FTDB_Shoutbox_Mod.js"]
+      "js": ["jquery-1.8.3.min.js", "FTDB_Shoutbox_Mod.js"]
     }
   ]
 }
