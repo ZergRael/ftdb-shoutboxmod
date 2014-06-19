@@ -1,0 +1,285 @@
+[size=7]FTDB Shoutbox Mod[/size][size=5](Beta)[/size]
+
+[size=5]Téléchargement[/size] - Version actuelle 0.7.6 (01/12/2012) - Licence GPLv3 - [img]http://thetabx.net/ftdb_smod/statistics/count/2.png[/img] uploads de statistiques enregistrés
+[url=https://chrome.google.com/webstore/detail/fighljihcdhgeagfbhpkcdkpicnjakpl]Extension Chrome[/url]
+[url=https://thetabx.net/download/ftdb/smod/FTDB_Shoutbox_Mod.user.js]Userscript (Firefox)[/url] [b][Nécessite [url=https://addons.mozilla.org/fr/firefox/addon/greasemonkey/]Greasemonkey[/url] !][/b]
+[url=https://thetabx.net/download/ftdb/smod/FTDB_Shoutbox_Mod.user.js]Userscript (Opera)[/url]
+[url=https://thetabx.net/download/ftdb/smod/FTDB_Shoutbox_Mod.ieuser.js]Internet Explorer[/url] [b][Nécessite [url=http://www.ie7pro.com/]IE7Pro[/url] !][/b]
+[url=https://thetabx.net/ftdb/downloader/]Safari[/url] [b][Nécessite [url=http://d.hatena.ne.jp/os0x/20100612/1276330696]Ninjakit[/url] !][/b]
+[url=https://code.google.com/p/ftdb-shoutboxmod/]Page GoogleCode[/url]
+
+Testé sous Chrome v18.0.1025.168 // Firefox v12.0 + Greasemonkey v0.9.18 // Internet Explorer v9.0.8112 + IE7Pro v2.5.1 // OSX Lion + Safari + Ninjakit // Thèmes CSS officiels compatibles
+
+[b]Changelog de la dernière version:[/b]
+[b]- 0.7.6 :[/b] (01/12/2012)
+- Suppression du correcteur d'heure maintenant inutile
+- Correction du souci de surbrillance suite à la maintenance
+- Amélioration du tampon de la liste utilisateur, un peu moins de clignotements
+
+- Modification de l'organisation des données d'users et de smileys/macro
+- Modification complète du système de traitement sur serveur
+- Retour de la possibilité de nommer les smileys avec des caractères spéciaux
+- Correction du scrolling en cas d'url longue lorsque le redimensionnement est désactivé
+
+- Ajout d'une annonce suite à la mise à jour
+- Ajout de la possiblité d'ajouter des notes sur un utilisateur
+- Ajout de la possiblité d'afficher les statistiques d'un utilisateur (dernière connexion et activité)
+
+N'oubliez pas de lire des instructions d'installation en cas de problème ;)
+
+[size=5]Sommaire :[/size]
+- Présentation
+- Fonctionnalités
+- Installation
+- FAQ
+- Problèmes connus
+- Prochaines mises à jour
+- Changelog
+- Remerciements
+
+
+[size=5]> Présentation :[/size]
+FTDB Shoutbox Mod est un userscript (ou script Greasemonkey), qui permet d'ajouter quelques lignes de javascript sur un site précis. Il est totalement indépendant du serveur car tout le traitement est effectué par le navigateur car développé en Javascript/JQuery.
+Ce script permet d'ajouter un certain nombre de fonctionnalités et d'ajustements à la shoutbox (voir Fonctionnalités).
+Il est compatible Chrome, Firefox (avec l'extension Greasemonkey), Internet Explorer (avec l'extension IE7Pro) et probablement d'autres navigateurs avec les plugins adaptés.
+
+[url=http://thetabx.net/assets/images/ftdb_sbm_full.png][img]http://thetabx.net/assets/images/ftdb_sbm_full_small.png[/img][/url]
+Affichage principal avec toutes les options activées
+
+[img]http://thetabx.net/assets/images/ftdb_sbm_userlist.png[/img]
+Recherche dans les connectés, liste d'amis/ignorés, menu contextuel et envoi rapide de MPs
+
+[img]http://thetabx.net/assets/images/ftdb_sbm_autoc.png[/img]
+Auto-complétion du pseudo
+
+[img]http://thetabx.net/assets/images/ftdb_sbm_bbcode.png[/img]
+Barre de BBCode
+
+[img]http://thetabx.net/assets/images/ftdb_sbm_autolink.png[/img]
+Remplacement d'un lien vers un torrent par son titre
+
+[img]http://thetabx.net/assets/images/ftdb_sbm_highlight.png[/img]
+Surbrillance des messages par mouseover sur un pseudo d'utilisateur
+
+
+[size=5]> Fonctionnalités :[/size]
+Chacune des fonctions suivantes est activable ou non par le biais d'un écran d'options trouvable en bas de page :
+[img]http://thetabx.net/assets/images/ftdb_sbm_options3.png[/img]
+
+
+[size=4][b]Shoutbox :[/b][/size]
+[b]- Inversion du sens d'affichage des messages[/b]
+Les messages les plus récents en bas, logique humaine de lire du haut vers le bas, dans l'ordre chronologique.
+
+[b]- Suppression des smileys, images et embed flash[/b]
+Pour ceux qui ne veulent que du texte :) (un smiley est remplacé par son équivalent texte, les images et embed sont transformés en simple lien)
+
+[b]- Scroll statique intelligent[/b]
+L'inverseur de shoutbox scroll automatiquement au dernier message. Cette fonction permet de l'en empêcher si vous regardez un message plus ancien.
+
+[b]- Remplace les liens vers un torrent/topic par leur titre[/b]
+Permet d'obtenir le titre du torrent (ou du topic sur le forum) directement sur la box, à la place du simple lien.
+
+[b]- Evite les changements entre http et https pour les liens du tracker[/b]
+Si vous êtes en https et un autre user link une page du site en http, le lien est automatiquement adapté en https (Et inversement si vous êtes en http pour éviter le problème du certificat).
+
+[b]- Nombre maximum de messages affichés[/b]
+Le serveur envoie les 30 derniers messages de la shoutbox, chaque nouveau message posté est ajouté à votre affichage jusqu'au seuil défini. Arrivé au seuil, les messages les plus anciens sont supprimés.
+
+[b]- Temps de mise en valeur des nouveaux messages[/b]
+Chaque nouveau message arrivé est affiché avec un fondu de durée personnalisable.
+
+[b]- Auto-complétion des pseudos[/b]
+Tapez les 3 premières lettres d'un pseudo puis tab (ou la flèche droite)  pour le valider automatiquement et continuez votre message (S'il existe plusieurs utilisateurs commençant par les mêmes 3 premières lettres, vous devez taper quelques lettres supplémentaires jusqu'à ce qu'un seul utilisateur corresponde).
+
+[b]- Surbrillance des messages par utilisateur[/b]
+Passez la souris sur un pseudo d'utilisateur et ses messages postés dans la shoutbox sont mis en valeur.
+
+[b]- Surbrillance à la citation[/b]
+Lorsque vous êtes cité dans un message, celui-ci est mis en surbrillance afin de notifier que l'on parle de vous. Possibilité de notification sonore
+
+[b]- Nombre de messages non-lus dans le titre lorsque l'onglet n'est pas sélectionné[/b]
+Indique les messages reçus dans le titre pendant que le l'onglet n'était pas sélectionné et met en valeur les messages non-lus lors du retour dans l'onglet
+
+[b]- Barre de Smileys personnalisés[/b]
+Crée une barre de boutons avec ajout de vos propres smileys.
+
+
+[size=4][b]Liste des utilisateurs connectés :[/b][/size]
+[b]- Champ de recherche des utilisateurs connectés à la shoutbox[/b]
+Un double clic sur le nombre d'utilisateurs connectés permet de rechercher précisément un pseudo.
+
+[b]- Annonce des connexions/déconnexions des utilisateurs[/b]
+Fondu sur leur pseudo en tête de liste.
+
+[b]- Nombre d'annonces à chaque update[/b]
+Evite de remplir la liste des utilisateurs par des annonces au delà d'un certain nombre.
+
+[b]- Ignorer un utilisateur[/b]
+Ignore les prochains message d'un utilisateur.
+
+[b]- Liste d'amis[/b]
+Les amis restent dans la liste d'utilisateurs même déconnectés. Pratique pour envoyer directement un MP.
+
+
+[size=4][b]Dimensions :[/b][/size]
+[b]- Redimensionnement automatique de la box[/b]
+Largeur automatique pour remplir au mieux le navigateur, hauteur personnalisable.
+
+[b]- Hauteur réglable au cliquer/déplacer[/b]
+Déplacez les bords de la zone de texte d'envoi des messages, la shoutbox s'adaptera automatiquement. Il est conseillé de désactiver l'option une fois les réglages terminés.
+
+
+[size=4][b]Autres :[/size]
+[b]- Ajout d'un client IRC Web[/b]
+Une fenêtre contenant chat IRC (par http://mibbit.com ) est ajoutée sous la chat box, gardez une vue sur les 2 en même temps !
+
+[b]- Vérificateur de nouveaux Messages Privés[/b]
+Le script met à jour le compteur de MP toutes les 15 secondes, si un nouveau MP arrive, une annonce est affichée dans la shoutbox (uniquement pour vous) avec le nom et le sujet du MP + un lien vers le message précis. L'icone des MP clignote aussi lorsque vous avez des MP non lus (Notification sonore possible).
+
+[b]- Réception et envoi de MP dans la shoutbox[/b]
+Lisez, répondez et envoyer de nouveaux MP sans quitter la shoutbox au travers de petites fenêtres style messagerie instantanée.
+
+[b]- Cacher la barre d'infos grades[/b]
+Plusss de place, toujours plusss de place !
+
+[b]- Sélection de la police de la shoutbox[/b]
+Permet de personnaliser la shoutbox à la police préférée sans toucher au CSS
+
+[b]- Autoriser l'envoi de statistiques anonymes[/b]
+Permet de me faire partager votre utilisation du script afin de l'améliorer (version du script et options activées). Active également le vérificateur de version dans les options, si une nouvelle version est disponible, un lien vers ce topic est affiché.
+
+[b]- Sauvegarde automatique des options[/b]
+Vous avez effectué un nettoyage des cookies ? Vous voulez changer de navigateur et conserver vos options ? Le script vous proposera de récupérer vos options dès qu'il détecte que vous avez perdu vos options.
+
+
+[size=5]> Installation :[/size]
+
+[b]- Chrome :[/b]
+Cliquez sur le lien de téléchargement donné plus haut, puis
+[img]http://thetabx.net/assets/images/ftdb_sbm_chrome1.png[/img]
+suivi de
+[img]http://thetabx.net/assets/images/ftdb_sbm_chrome2.png[/img]
+Pour finir un petit refresh sur la page de la shoutbox.
+
+[b]- Firefox :[/b]
+Installez [url=https://addons.mozilla.org/fr/firefox/addon/greasemonkey/]Greasemonkey[/url], puis cliquez sur le lien de téléchargement donné plus haut, suivi de
+[img]http://thetabx.net/assets/images/ftdb_sbm_ff.png[/img]
+Et finir avec un petit refresh sur la page de la shoutbox.
+
+[b]- Internet Explorer :[/b]
+Installez tout d'abord [url=http://www.ie7pro.com/]IE7Pro[/url] en prenant garde à ne pas installer leur pub.
+[img]http://thetabx.net/assets/images/ftdb_sbm_ie1.png[/img]
+Puis téléchargez la version spécifique à IE du script avec un clic-droit > enregistrer-sous.
+Déplacez le script téléchargé dans le dossier userscripts de IE7Pro ( C:/Program Files/IEPro/userscripts par défaut).
+Lancer Internet Explorer et entrer dans les options userscripts de IE7Pro pour activer le script
+[img]http://thetabx.net/assets/images/ftdb_sbm_ie2.png[/img]
+Finir par un refresh de la page, éventuellement un redémarrage d'IE si cela ne suffit pas
+
+[b]- Opera :[/b]
+Téléchargez le script (avec clic droit > enregistrer-sous) et placez le dans un dossier de stockage permanent (Le script ne devra pas être supprimé !)
+Dans Opera, aller dans Réglages / Préférences puis :
+[img]http://thetabx.net/assets/images/ftdb_sbm_opera.png[/img]
+Et localiser le dossier ou vous avez téléchargé le script. Enfin, un refresh de la page ou un redémarrage du navigateur si nécessaire.
+
+[b]- Safari :[/b]
+Installer l'extension [url=http://d.hatena.ne.jp/os0x/20100612/1276330696]Ninjakit pour Safari[/url].
+Puis le script à partir de la page suivante : http://thetabx.net/downloader (Le script est le même, Ninjascript requiert une page blanche pour l'installation des scripts) et l'installer.
+Un refresh de la shoutbox devrait suffire pour l'activer.
+
+[b]- Autres :[/b]
+Changez de navigateur ou trouvez un plugin imitant le fonctionnement de Greasemonkey pour votre navigateur :).
+
+
+[size=5]> FAQ :[/size]
+
+[b]- CA NE MARCHE PAS ![/b]
+* Faites un refresh sur la page de la ShoutBox
+* Assurez vous d'utiliser la dernière version du script, de votre navigateur et éventuellement de Greasemonkey
+Si le script ne fonctionne toujours pas, postez ici ou envoyez moi un MP avec un screenshot de l'erreur observée/une description précise/le log console de javascript
+
+[b]- Le redimensionnement automatique déconne[/b]
+Si vous utilisez un thème CSS personnalisé, il est possible que cela interfère avec le redimensionnement
+Postez ici ou envoyez moi un MP avec le nom du CSS employé/un screenshot de l'erreur observée
+
+[b]- Lors de l'installation, mon navigateur a dit que le script pouvait accéder à mes données !![/b]
+En effet, le script peut accéder [b]UNIQUEMENT[/b] aux données déjà affichées sur la page. De plus, lors de l'installation, vous avez peut-être vu qu'il ne s'active [b]QUE[/b] sur la page de la shoutbox. Enfin, si vous êtes curieux ou suspicieux, le code source est visible et non obfusqué (Ca manque de commentaires je sais).
+
+[b]- Quelles sont ces statistiques anonymes envoyées ?[/b]
+Le script se permet, si l'option adéquate est activée, d'envoyer le nom du script ainsi que sa version à mon serveur afin d'établir quelques statistiques sur son utilisation.
+Voici un var_dump() des données que mon serveur reçoit :
+[code] array(3) {
+    ["namespace"]=>
+    string(4) "ftdb"
+    ["application"]=>
+    string(8) "shoutbox"
+    ["version"]=>
+    string(5) "0.3.20"
+    ["options"]=>
+    string(32) "0:1:0:0:0:1:1:1:300:0:1:0:0:1:0:1:1:(...)"
+} [/code]
+
+[b]- Comment éviter le fondu sur les nouveaux messages[/b]
+Mettre "Durée du fade in des nouveaux messages" à 0.
+
+[b]- Comment rechercher un utilisateur non connecté[/b]
+Actuellement impossible, l'outil de recherche ne se base que sur les utilisateurs connectés à la shoutbox.
+
+
+[size=5]> Problèmes connus :[/size]
+
+[b]- Il arrive que la shoutbox arrête de se mettre à jour alors que la liste des utilisateurs reste actualisée[/b]
+Cette partie est gérée par le javascript de la page et non par ce script, je ne peux donc pas modifier ce comportement, même s'il semble que le script augmente la fréquence de ce problème. Il suffit de rafraîchir la page pour relancer l'actualisation.
+
+
+[size=5]> Prochaines mises à jour :[/size]
+
+- Proposez vos idées !
+
+
+[size=5]> Changelog :[/size]
+[b]- 0.7.6 :[/b] (01/12/2012)
+- Suppression du correcteur d'heure maintenant inutile
+- Correction du souci de surbrillance suite à la maintenance
+- Amélioration du tampon de la liste utilisateur, un peu moins de clignotements
+- Modification de l'organisation des données d'users et de smileys/macro
+- Modification complète du système de traitement sur serveur
+- Retour de la possibilité de nommer les smileys avec des caractères spéciaux
+- Correction du scrolling en cas d'url longue lorsque le redimensionnement est désactivé
+- Ajout d'une annonce suite à la mise à jour
+- Ajout de la possiblité d'ajouter des notes sur un utilisateur
+- Ajout de la possiblité d'afficher les statistiques d'un utilisateur (dernière connexion et activité)
+
+[b]- 0.7.3 :[/b] (22/10/2012)
+- Ajout d'un filtre antiflood sommaire
+- Modification de la gestion des données sauvegardées : devrait corriger le problème de backup
+- Modification du suppresseur de couleur pour enlever tous les effets de style (b/i/u/s)
+- Ajout d'un détecteur de noms de torrent. Transforme le nom en lien vers la page de recherche
+- Modification du filtrage d'utilisateur : devrait améliorer les performances et éviter les lags au filtrage
+- Ajout d'un correcteur d'heure : enlève 3 minutes et 57 secondes sur les timestamp si activé
+[b]- 0.7.2 :[/b] (28/09/2012)
+- Ajout d'un filtrage temporaire pour ne voir que les message d'une seule personne à la fois si besoin
+- Modification de l'auto-complétion pour commencer par les utilisateurs ayant parlé récemment
+- Modification de l'ensemble du système de backup pour éviter les problèmes de caractères spéciaux
+- Modification du rythme des backups pour n'envoyer les données que lorsqu'elles ont été modifiées
+- Réécriture complète du moteur de la liste utilisateur
+- Ajout d'une mémoire tampon sur la liste utilisateur
+- Correction d'une fuite mémoire sur la liste utilisateur
+- Amélioration du système d'amis / ignorés
+- Correction du translateur Lien vers fiche torrent -> Nom du torrent
+- Correction du détecteur du highlight au quote pour les pseudos avec plusieurs "."
+- Correction de l'anti-coloration pour n'enlever que la couleur
+- Correction de l'updater de couleurs des amis en cas de changement de classe
+- Correction de la position des images si elle a été rendue cliquable
+- Correction d'un bug du moteur Javascript de Firefox
+
+(...) [url=https://code.google.com/p/ftdb-shoutboxmod/]Changelogs complets[/url] (...)
+
+[size=5]> Remerciements :[/size]
+A [b]Hexmaster[/b] pour ses tips
+A [b]alandar83[/b] pour son aide et sa patience avec toutes les versions qu'il teste en permanence
+A toute la communauté et plus particulièrement ceux qui utilisent ce script en me rapportant des bugs/suggestions
+
+
+[size=4]Notez tout de même que le script est toujours en beta et qu'il est possible que bugs arrivent ou que des fonctionnalités manquent.[/size]
+Si vous avez des suggestions d'améliorations ou que vous trouvez un bug, n'hésitez pas à poster un maximum de détails et éventuellement un screenshot afin de m'aider à améliorer ce script!
